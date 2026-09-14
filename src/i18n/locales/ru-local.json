@@ -1,0 +1,52 @@
+{
+  "monitor": {
+    "yesterday": "Вчера",
+    "day_before_yesterday": "Позавчера",
+    "distribution": {
+      "channel_title": "Распределение использования каналов",
+      "models": "Модели",
+      "channels": "Каналы",
+      "other": "Прочее",
+      "tabs_label": "Виды распределения использования",
+      "tab_channel_token": "Токены каналов",
+      "tab_channel_cost": "Стоимость каналов",
+      "tab_model_token": "Токены моделей",
+      "tab_model_cost": "Стоимость моделей",
+      "by_tokens": "По токенам",
+      "by_cost": "По стоимости",
+      "tokens": "Токены",
+      "cost": "Стоимость",
+      "model_token_share": "Доля токенов моделей",
+      "model_cost_share": "Доля стоимости моделей",
+      "channel_token_share": "Доля токенов каналов",
+      "channel_cost_share": "Доля стоимости каналов"
+    },
+    "time": {
+      "yesterday": "Вчера",
+      "dayBeforeYesterday": "Позавчера"
+    },
+    "channel": {
+      "all_request_keys": "Все ключи запросов"
+    },
+    "logs": {
+      "fast_badge": "FAST",
+      "all_request_keys": "Все ключи запросов",
+      "header_request_key": "Ключ запроса"
+    }
+  },
+  "nav": {
+    "monitor": "Центр мониторинга"
+  },
+  "nav_meta": {
+    "monitor": "Статистика запросов и аналитика"
+  },
+  "service_health": {
+    "title": "Состояние сервиса",
+    "window": "Последние 7 дней",
+    "oldest": "Старые",
+    "newest": "Новые"
+  },
+  "common": {
+    "load_failed": "Ошибка загрузки"
+  }
+}

@@ -356,6 +356,12 @@ const toggleSponsorConfig = async (raw: SponsorProviderRaw, disabled: boolean) =
   }
 };
 
+const SPONSOR_ONLY_BRANDS: ReadonlySet<ProviderBrand> = new Set<ProviderBrand>([
+  'apikeyFun',
+  'fennoAI',
+  'qiniuCloud',
+]);
+
 export const buildProviderGroups = (config: Config): ProviderGroup[] =>
   PROVIDER_BRAND_ORDER.reduce<ProviderGroup[]>((groups, brand) => {
     let resources: ProviderResource[];
@@ -444,6 +450,10 @@ export const buildProviderGroups = (config: Config): ProviderGroup[] =>
       }
       default:
         return groups;
+    }
+    // 去广告：赞助商品牌（apikeyFun / fennoAI / qiniuCloud）仅在已配置时才显示分组，不再作为推广入口常驻
+    if (SPONSOR_ONLY_BRANDS.has(brand) && resources.length === 0) {
+      return groups;
     }
     groups.push({
       id: brand,

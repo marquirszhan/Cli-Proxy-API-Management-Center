@@ -234,7 +234,6 @@ export const PROVIDER_DESCRIPTORS: Record<ProviderBrand, ProviderDescriptor> = {
 };
 
 export const PROVIDER_BRAND_ORDER: ProviderBrand[] = [
-  'kimi',
   'gemini',
   'interactions',
   'codex',
@@ -242,6 +241,7 @@ export const PROVIDER_BRAND_ORDER: ProviderBrand[] = [
   'claude',
   'vertex',
   'openaiCompatibility',
+  'kimi',
   'apikeyFun',
   'fennoAI',
   'qiniuCloud',

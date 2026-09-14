@@ -9,14 +9,19 @@
 
 从6.0.19版本开始，Web UI 随主程序一起提供；服务运行后，通过 API 端口上的"/management.html"访问它。
 
-## 赞助商
+## 关于本 fork
 
-[![https://go.apimart.ai/gh-cli-proxy-api-management-center](./assets/apimart-zh.png)](https://go.apimart.ai/gh-cli-proxy-api-management-center)
+本 fork 跟随官方 [router-for-me/Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center) 界面，并额外提供：
 
-感谢 APIMart 赞助了本项目！
+- **监控中心**（`/monitor`），移植自 [caidaoli/Cli-Proxy-API-Management-Center](https://github.com/caidaoli/Cli-Proxy-API-Management-Center)：KPI 卡片、模型/渠道分布、小时级与日级趋势、服务健康热力图、失败分析与请求日志。需要后端提供 `/v0/management/custom/monitor/*` 接口（如 `ghcr.io/caidaoli/cliproxyapi`）。
+- 移除全部赞助商 / 推广内容。
 
-APIMart 是专注 AI 图片/视频生成的低价 API 平台，GPT-Image-2 低至 $0.006/张，1 美元可出图 160+ 张。图片、视频一套异步 API 通吃，提交任务拿 ID、回调取结果，跑批万张不超时、换模型不改代码。按量付费、无月费，通过[此注册链接](https://go.apimart.ai/gh-cli-proxy-api-management-center)注册即可开用。
+让 CLI Proxy API 使用本 fork 的面板：
 
+```yaml
+remote-management:
+  panel-github-repository: https://github.com/marquirszhan/Cli-Proxy-API-Management-Center
+```
 ## 这是什么（以及不是什么）
 
 - 本仓库只包含 Web 管理界面本身，通过 CLI Proxy API 的 **Management API**（`/v0/management`）读取/修改配置、上传凭据与查看日志。

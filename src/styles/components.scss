@@ -147,6 +147,23 @@ textarea {
     font-weight: 700;
     color: var(--text-primary);
   }
+
+  .card-title-group {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+
+    .title {
+      flex: 0 0 auto;
+    }
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
 }
 
 .status-badge {

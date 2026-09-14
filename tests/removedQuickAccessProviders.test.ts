@@ -17,9 +17,24 @@ describe('removed quick-access providers', () => {
     for (const [brand] of retiredEndpoints) {
       expect(ids).not.toContain(brand);
     }
-    for (const brand of ['apikeyFun', 'fennoAI', 'qiniuCloud', 'kimi']) {
-      expect(ids).toContain(brand);
+    // 去广告：赞助商品牌在未配置时不再作为常驻分组出现；Kimi 作为普通厂商保留
+    for (const brand of ['apikeyFun', 'fennoAI', 'qiniuCloud']) {
+      expect(ids).not.toContain(brand);
     }
+    expect(ids).toContain('kimi');
+  });
+
+  test('keeps sponsor brand groups visible once they are configured', () => {
+    const ids = buildProviderGroups({
+      openaiCompatibility: [
+        {
+          name: 'apikeyFun',
+          baseUrl: 'https://api.apikey.fan/v1',
+          apiKeyEntries: [{ apiKey: 'sk-test' }],
+        },
+      ],
+    }).map((group) => group.id);
+    expect(ids).toContain('apikeyFun');
   });
 
   for (const [name, baseUrl] of retiredEndpoints) {

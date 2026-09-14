@@ -106,8 +106,11 @@ describe('Kimi provider', () => {
     expect(PROVIDER_LOGOS.kimi.themeSurface).toBeTrue();
   });
 
-  test('is the first provider in the catalog', () => {
-    expect(PROVIDER_BRAND_ORDER[0]).toBe('kimi');
+  test('is listed after the generic protocol providers (no promoted placement)', () => {
+    expect(PROVIDER_BRAND_ORDER).toContain('kimi');
+    expect(PROVIDER_BRAND_ORDER.indexOf('kimi')).toBeGreaterThan(
+      PROVIDER_BRAND_ORDER.indexOf('openaiCompatibility')
+    );
   });
 
   test('recognizes Kimi configs only by supported protocol endpoint', () => {
