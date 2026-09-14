@@ -26,7 +26,7 @@ export function DailyTrendChart({
 }: DailyTrendChartProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const requestKey = `${timeRange}\0${apiFilter}`;
+  const requestKey = `${timeRange}\u0000${apiFilter}`;
   const [dailyState, setDailyState] = useState<{
     requestKey: string;
     items: MonitorDailyTrendItem[];

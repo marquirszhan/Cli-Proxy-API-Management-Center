@@ -132,8 +132,8 @@ export function MonitorPage() {
   const [providerModels, setProviderModels] = useState<Record<string, Set<string>>>({});
   const [overview, setOverview] = useState<MonitorOverviewState | null>(null);
 
-  const overviewKey = `${timeRange}\0${apiFilter}`;
-  const hourlyPreloadKey = `${timeRange}\0${apiFilter}\0${12}`;
+  const overviewKey = `${timeRange}\u0000${apiFilter}`;
+  const hourlyPreloadKey = `${timeRange}\u0000${apiFilter}\u0000${12}`;
   const overviewReady = overview?.key === overviewKey && overview.complete;
   const [statsSectionRef, statsSectionVisible] = useNearViewport(overviewReady);
   const [requestLogsRef, requestLogsVisible] = useNearViewport(overviewReady);

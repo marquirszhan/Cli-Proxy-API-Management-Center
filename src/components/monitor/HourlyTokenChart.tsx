@@ -35,7 +35,7 @@ export function HourlyTokenChart({
 }: HourlyTokenChartProps) {
   const { t } = useTranslation();
   const [hourRange, setHourRange] = useState<HourRange>(12);
-  const requestKey = `${timeRange}\0${apiFilter}\0${hourRange}`;
+  const requestKey = `${timeRange}\u0000${apiFilter}\u0000${hourRange}`;
   const [hourlyState, setHourlyState] = useState<{
     requestKey: string;
     data: MonitorHourlyTokensData;

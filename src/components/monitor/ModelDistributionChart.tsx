@@ -64,7 +64,7 @@ export function ModelDistributionChart({
   const [activeTab, setActiveTab] = useState<DistributionTab>('channel-token');
   const distributionMode = activeTab.startsWith('channel') ? 'channel' : 'model';
   const metric: MonitorDistributionMetric = activeTab.endsWith('cost') ? 'cost' : 'token';
-  const requestKey = `${timeRange}\0${apiFilter}\0${activeTab}`;
+  const requestKey = `${timeRange}\u0000${apiFilter}\u0000${activeTab}`;
   const otherLabel = t('monitor.distribution.other');
   const [distributionState, setDistributionState] = useState<{
     requestKey: string;
@@ -73,7 +73,7 @@ export function ModelDistributionChart({
   const loading = distributionState?.requestKey !== requestKey;
   const distributionItems = distributionState?.items ?? EMPTY_DISTRIBUTION_ITEMS;
 
-  const statsRequestKey = `${timeRange}\0${apiFilter}`;
+  const statsRequestKey = `${timeRange}\u0000${apiFilter}`;
   const parentOwned = preloadedKey === statsRequestKey;
 
   useEffect(() => {

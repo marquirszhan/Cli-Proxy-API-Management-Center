@@ -20,7 +20,7 @@ interface KpiCardsProps {
 
 export function KpiCards({ timeRange, apiFilter, preloaded, preloadedKey }: KpiCardsProps) {
   const { t } = useTranslation();
-  const requestKey = `${timeRange}\0${apiFilter}`;
+  const requestKey = `${timeRange}\u0000${apiFilter}`;
   const [kpiResult, setKpiResult] = useState<{
     requestKey: string;
     data: MonitorKpiData | null;
