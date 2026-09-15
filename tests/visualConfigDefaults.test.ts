@@ -8,6 +8,7 @@ describe('visual config boolean defaults', () => {
   test('initial and missing-key values agree with backend defaults', () => {
     for (const config of [runVisualConfig(), runVisualConfig('port: 8317\n')]) {
       expect(config.visualValues.wsAuth).toBe(true);
+      expect(config.visualValues.routingSessionAffinitySubagents).toBe(true);
       expect(config.visualValues.quotaSwitchProject).toBe(false);
       expect(config.visualValues.quotaSwitchPreviewModel).toBe(false);
       expect(config.visualDirty).toBe(false);

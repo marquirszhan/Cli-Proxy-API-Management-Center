@@ -39,6 +39,11 @@ export function SectionNetwork({
     t,
     validationErrors?.authAutoRefreshWorkers
   );
+  const authLoadWorkersError = getValidationMessage(t, validationErrors?.authLoadWorkers);
+  const transientErrorCooldownSecondsError = getValidationMessage(
+    t,
+    validationErrors?.transientErrorCooldownSeconds
+  );
 
   const disableImageGenerationOptions = [
     {
@@ -117,6 +122,40 @@ export function SectionNetwork({
               disabled={disabled}
               hint={t('config_management.visual.sections.network.auth_auto_refresh_workers_hint')}
               error={authAutoRefreshWorkersError}
+            />
+          </FieldAnchor>
+          <FieldAnchor fieldId="authLoadWorkers">
+            <Input
+              label={t('config_management.visual.sections.network.auth_load_workers')}
+              type="number"
+              placeholder="16"
+              value={values.authLoadWorkers}
+              onChange={(e) => onChange({ authLoadWorkers: e.target.value })}
+              disabled={disabled}
+              hint={t('config_management.visual.sections.network.auth_load_workers_hint')}
+              error={authLoadWorkersError}
+            />
+          </FieldAnchor>
+          <FieldAnchor fieldId="transientErrorCooldownSeconds">
+            <Input
+              label={t('config_management.visual.sections.network.transient_error_cooldown')}
+              type="number"
+              placeholder="0"
+              value={values.transientErrorCooldownSeconds}
+              onChange={(e) => onChange({ transientErrorCooldownSeconds: e.target.value })}
+              disabled={disabled}
+              hint={t('config_management.visual.sections.network.transient_error_cooldown_hint')}
+              error={transientErrorCooldownSecondsError}
+            />
+          </FieldAnchor>
+          <FieldAnchor fieldId="videoResultAuthCacheTtl">
+            <Input
+              label={t('config_management.visual.sections.network.video_result_auth_cache_ttl')}
+              placeholder="3h"
+              value={values.videoResultAuthCacheTtl}
+              onChange={(e) => onChange({ videoResultAuthCacheTtl: e.target.value })}
+              disabled={disabled}
+              hint={t('config_management.visual.sections.network.video_result_auth_cache_ttl_hint')}
             />
           </FieldAnchor>
           <FieldAnchor fieldId="routingStrategy">
@@ -228,12 +267,54 @@ export function SectionNetwork({
               onChange={(disableCooling) => onChange({ disableCooling })}
             />
           </FieldAnchor>
+          <FieldAnchor fieldId="deleteUnauthorizedAuth">
+            <ToggleRow
+              title={t('config_management.visual.sections.network.delete_unauthorized_auth')}
+              description={t(
+                'config_management.visual.sections.network.delete_unauthorized_auth_desc'
+              )}
+              checked={values.deleteUnauthorizedAuth}
+              disabled={disabled}
+              onChange={(deleteUnauthorizedAuth) => onChange({ deleteUnauthorizedAuth })}
+            />
+          </FieldAnchor>
+          <FieldAnchor fieldId="saveCooldownStatus">
+            <ToggleRow
+              title={t('config_management.visual.sections.network.save_cooldown_status')}
+              description={t('config_management.visual.sections.network.save_cooldown_status_desc')}
+              checked={values.saveCooldownStatus}
+              disabled={disabled}
+              onChange={(saveCooldownStatus) => onChange({ saveCooldownStatus })}
+            />
+          </FieldAnchor>
+          <FieldAnchor fieldId="localModel">
+            <ToggleRow
+              title={t('config_management.visual.sections.network.local_model')}
+              description={t('config_management.visual.sections.network.local_model_desc')}
+              checked={values.localModel}
+              disabled={disabled}
+              onChange={(localModel) => onChange({ localModel })}
+            />
+          </FieldAnchor>
           <FieldAnchor fieldId="routingSessionAffinity">
             <ToggleRow
               title={t('config_management.visual.sections.network.session_affinity')}
               checked={values.routingSessionAffinity}
               disabled={disabled}
               onChange={(routingSessionAffinity) => onChange({ routingSessionAffinity })}
+            />
+          </FieldAnchor>
+          <FieldAnchor fieldId="routingSessionAffinitySubagents">
+            <ToggleRow
+              title={t('config_management.visual.sections.network.session_affinity_subagents')}
+              description={t(
+                'config_management.visual.sections.network.session_affinity_subagents_desc'
+              )}
+              checked={values.routingSessionAffinitySubagents}
+              disabled={disabled}
+              onChange={(routingSessionAffinitySubagents) =>
+                onChange({ routingSessionAffinitySubagents })
+              }
             />
           </FieldAnchor>
           <FieldAnchor fieldId="wsAuth">

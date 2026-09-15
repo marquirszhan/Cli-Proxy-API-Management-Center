@@ -67,6 +67,16 @@ export function SectionAdvanced({ values, disabled, animateIn, onChange }: Confi
                   onChange={(pluginsEnabled) => onChange({ pluginsEnabled })}
                 />
               </FieldAnchor>
+              <FieldAnchor fieldId="pluginsDir">
+                <Input
+                  label={t('config_management.visual.sections.system.plugins_dir')}
+                  placeholder="plugins"
+                  value={values.pluginsDir}
+                  onChange={(e) => onChange({ pluginsDir: e.target.value })}
+                  disabled={disabled}
+                  hint={t('config_management.visual.sections.system.plugins_dir_hint')}
+                />
+              </FieldAnchor>
             </FieldGrid>
 
             <FieldAnchor fieldId="pluginStoreSources">
@@ -280,8 +290,29 @@ export function SectionAdvanced({ values, disabled, animateIn, onChange }: Confi
                   disabled={disabled}
                 />
               </FieldAnchor>
+              <FieldAnchor fieldId="claudeHeaderTimezone">
+                <Input
+                  label={t('config_management.visual.sections.headers.timezone')}
+                  placeholder="Asia/Shanghai"
+                  value={values.claudeHeaderTimezone}
+                  onChange={(e) => onChange({ claudeHeaderTimezone: e.target.value })}
+                  disabled={disabled}
+                  hint={t('config_management.visual.sections.headers.timezone_hint')}
+                />
+              </FieldAnchor>
             </FieldGrid>
             <FieldGrid>
+              <FieldAnchor fieldId="disableClaudeCloakMode">
+                <ToggleRow
+                  title={t('config_management.visual.sections.headers.disable_claude_cloak')}
+                  description={t(
+                    'config_management.visual.sections.headers.disable_claude_cloak_desc'
+                  )}
+                  checked={values.disableClaudeCloakMode}
+                  disabled={disabled}
+                  onChange={(disableClaudeCloakMode) => onChange({ disableClaudeCloakMode })}
+                />
+              </FieldAnchor>
               <FieldAnchor fieldId="claudeHeaderStabilizeDeviceProfile">
                 <ToggleRow
                   title={t('config_management.visual.sections.headers.stabilize_device')}
@@ -317,6 +348,133 @@ export function SectionAdvanced({ values, disabled, animateIn, onChange }: Confi
               </FieldAnchor>
             </FieldGrid>
           </FieldStack>
+        </Collapsible>
+
+        <Collapsible
+          label={t('config_management.visual.sections.advanced.codex_title')}
+          hint={t('config_management.visual.sections.advanced.codex_description')}
+          defaultOpen={false}
+        >
+          <FieldStack>
+            <FieldGrid>
+              <FieldAnchor fieldId="codexIdentityConfuse">
+                <ToggleRow
+                  title={t('config_management.visual.sections.advanced.codex_identity_confuse')}
+                  description={t(
+                    'config_management.visual.sections.advanced.codex_identity_confuse_desc'
+                  )}
+                  checked={values.codexIdentityConfuse}
+                  disabled={disabled}
+                  onChange={(codexIdentityConfuse) => onChange({ codexIdentityConfuse })}
+                />
+              </FieldAnchor>
+              <FieldAnchor fieldId="codexOptimizeMultiAgentV2">
+                <ToggleRow
+                  title={t('config_management.visual.sections.advanced.codex_optimize_multi_agent')}
+                  description={t(
+                    'config_management.visual.sections.advanced.codex_optimize_multi_agent_desc'
+                  )}
+                  checked={values.codexOptimizeMultiAgentV2}
+                  disabled={disabled}
+                  onChange={(codexOptimizeMultiAgentV2) => onChange({ codexOptimizeMultiAgentV2 })}
+                />
+              </FieldAnchor>
+              <FieldAnchor fieldId="codexStripIntermediaryUpdates">
+                <ToggleRow
+                  title={t('config_management.visual.sections.advanced.codex_strip_intermediary')}
+                  description={t(
+                    'config_management.visual.sections.advanced.codex_strip_intermediary_desc'
+                  )}
+                  checked={values.codexStripIntermediaryUpdates}
+                  disabled={disabled}
+                  onChange={(codexStripIntermediaryUpdates) =>
+                    onChange({ codexStripIntermediaryUpdates })
+                  }
+                />
+              </FieldAnchor>
+              <FieldAnchor fieldId="codexDisableCloaking">
+                <ToggleRow
+                  title={t('config_management.visual.sections.advanced.codex_disable_cloaking')}
+                  description={t(
+                    'config_management.visual.sections.advanced.codex_disable_cloaking_desc'
+                  )}
+                  checked={values.codexDisableCloaking}
+                  disabled={disabled}
+                  onChange={(codexDisableCloaking) => onChange({ codexDisableCloaking })}
+                />
+              </FieldAnchor>
+              <FieldAnchor fieldId="codexStreamBootstrapBuffering">
+                <ToggleRow
+                  title={t('config_management.visual.sections.advanced.codex_stream_bootstrap')}
+                  description={t(
+                    'config_management.visual.sections.advanced.codex_stream_bootstrap_desc'
+                  )}
+                  checked={values.codexStreamBootstrapBuffering}
+                  disabled={disabled}
+                  onChange={(codexStreamBootstrapBuffering) =>
+                    onChange({ codexStreamBootstrapBuffering })
+                  }
+                />
+              </FieldAnchor>
+              <FieldAnchor fieldId="codexOrphanDelegationCompatibility">
+                <ToggleRow
+                  title={t('config_management.visual.sections.advanced.codex_orphan_delegation')}
+                  description={t(
+                    'config_management.visual.sections.advanced.codex_orphan_delegation_desc'
+                  )}
+                  checked={values.codexOrphanDelegationCompatibility}
+                  disabled={disabled}
+                  onChange={(codexOrphanDelegationCompatibility) =>
+                    onChange({ codexOrphanDelegationCompatibility })
+                  }
+                />
+              </FieldAnchor>
+              <FieldAnchor fieldId="codexModelLevelCooling">
+                <ToggleRow
+                  title={t('config_management.visual.sections.advanced.codex_model_level_cooling')}
+                  description={t(
+                    'config_management.visual.sections.advanced.codex_model_level_cooling_desc'
+                  )}
+                  checked={values.codexModelLevelCooling}
+                  disabled={disabled}
+                  onChange={(codexModelLevelCooling) => onChange({ codexModelLevelCooling })}
+                />
+              </FieldAnchor>
+              <FieldAnchor fieldId="codexStreamBootstrapTimeout">
+                <Input
+                  label={t(
+                    'config_management.visual.sections.advanced.codex_stream_bootstrap_timeout'
+                  )}
+                  placeholder="0"
+                  value={values.codexStreamBootstrapTimeout}
+                  onChange={(e) => onChange({ codexStreamBootstrapTimeout: e.target.value })}
+                  disabled={disabled}
+                  hint={t(
+                    'config_management.visual.sections.advanced.codex_stream_bootstrap_timeout_hint'
+                  )}
+                />
+              </FieldAnchor>
+            </FieldGrid>
+          </FieldStack>
+        </Collapsible>
+
+        <Collapsible
+          label={t('config_management.visual.sections.advanced.xai_title')}
+          defaultOpen={false}
+        >
+          <FieldGrid>
+            <FieldAnchor fieldId="xaiInjectXSearch">
+              <ToggleRow
+                title={t('config_management.visual.sections.advanced.xai_inject_x_search')}
+                description={t(
+                  'config_management.visual.sections.advanced.xai_inject_x_search_desc'
+                )}
+                checked={values.xaiInjectXSearch}
+                disabled={disabled}
+                onChange={(xaiInjectXSearch) => onChange({ xaiInjectXSearch })}
+              />
+            </FieldAnchor>
+          </FieldGrid>
         </Collapsible>
       </FieldStack>
     </SectionCard>

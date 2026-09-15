@@ -99,6 +99,26 @@ export function SectionLogging({
               onChange={(usageStatisticsEnabled) => onChange({ usageStatisticsEnabled })}
             />
           </FieldAnchor>
+          <FieldAnchor fieldId="usagePersistenceEnabled">
+            <ToggleRow
+              title={t('config_management.visual.sections.system.usage_persistence_enabled')}
+              description={t(
+                'config_management.visual.sections.system.usage_persistence_enabled_desc'
+              )}
+              checked={values.usagePersistenceEnabled}
+              disabled={disabled}
+              onChange={(usagePersistenceEnabled) => onChange({ usagePersistenceEnabled })}
+            />
+          </FieldAnchor>
+          <FieldAnchor fieldId="requestLog">
+            <ToggleRow
+              title={t('config_management.visual.sections.system.request_log')}
+              description={t('config_management.visual.sections.system.request_log_desc')}
+              checked={values.requestLog}
+              disabled={disabled}
+              onChange={(requestLog) => onChange({ requestLog })}
+            />
+          </FieldAnchor>
         </FieldGrid>
       </FieldStack>
     </SectionCard>

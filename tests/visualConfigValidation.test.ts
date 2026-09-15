@@ -178,6 +178,22 @@ streaming:
     }
   });
 
+  test('requires auth-load-workers to be empty or within 1..64', () => {
+    const values = structuredClone(DEFAULT_VISUAL_VALUES);
+
+    values.authLoadWorkers = '';
+    expect(getVisualConfigValidationErrors(values).authLoadWorkers).toBeUndefined();
+
+    values.authLoadWorkers = '0';
+    expect(getVisualConfigValidationErrors(values).authLoadWorkers).toBe('integer_range_1_64');
+
+    values.authLoadWorkers = '65';
+    expect(getVisualConfigValidationErrors(values).authLoadWorkers).toBe('integer_range_1_64');
+
+    values.authLoadWorkers = '16';
+    expect(getVisualConfigValidationErrors(values).authLoadWorkers).toBeUndefined();
+  });
+
   test('requires Redis usage retention to be empty or within 1..3600', () => {
     const values = structuredClone(DEFAULT_VISUAL_VALUES);
 

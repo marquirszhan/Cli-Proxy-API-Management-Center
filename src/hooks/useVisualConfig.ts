@@ -196,6 +196,14 @@ function getRedisRetentionError(value: string): 'integer_range_1_3600' | undefin
   return parsed >= 1 && parsed <= 3600 ? undefined : 'integer_range_1_3600';
 }
 
+function getAuthLoadWorkersError(value: string): 'integer_range_1_64' | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (!/^\d+$/.test(trimmed)) return 'integer_range_1_64';
+  const parsed = Number(trimmed);
+  return parsed >= 1 && parsed <= 64 ? undefined : 'integer_range_1_64';
+}
+
 export function getVisualConfigValidationErrors(
   values: VisualConfigValues
 ): VisualConfigValidationErrors {
@@ -208,6 +216,8 @@ export function getVisualConfigValidationErrors(
     maxRetryCredentials: getIntegerError(values.maxRetryCredentials),
     maxRetryInterval: getIntegerError(values.maxRetryInterval),
     authAutoRefreshWorkers: getIntegerError(values.authAutoRefreshWorkers),
+    authLoadWorkers: getAuthLoadWorkersError(values.authLoadWorkers),
+    transientErrorCooldownSeconds: getIntegerError(values.transientErrorCooldownSeconds),
     'streaming.keepaliveSeconds': getIntegerError(values.streaming.keepaliveSeconds),
     'streaming.bootstrapRetries': getIntegerError(values.streaming.bootstrapRetries),
     'streaming.nonstreamKeepaliveInterval': getIntegerError(
@@ -1073,13 +1083,22 @@ function getNextDirtyFields(
       'rmDisableAutoUpdatePanel',
       'errorLogsMaxFiles',
       'usageStatisticsEnabled',
+      'usagePersistenceEnabled',
+      'requestLog',
       'redisUsageQueueRetentionSeconds',
       'pluginsEnabled',
+      'pluginsDir',
       'passthroughHeaders',
       'disableCooling',
+      'deleteUnauthorizedAuth',
+      'saveCooldownStatus',
+      'transientErrorCooldownSeconds',
       'disableImageGeneration',
       'gptImage2BaseModel',
       'authAutoRefreshWorkers',
+      'authLoadWorkers',
+      'localModel',
+      'videoResultAuthCacheTtl',
       'antigravitySignatureCacheEnabled',
       'antigravitySignatureBypassStrict',
       'claudeHeaderUserAgent',
@@ -1088,7 +1107,18 @@ function getNextDirtyFields(
       'claudeHeaderOs',
       'claudeHeaderArch',
       'claudeHeaderTimeout',
+      'claudeHeaderTimezone',
       'claudeHeaderStabilizeDeviceProfile',
+      'disableClaudeCloakMode',
+      'xaiInjectXSearch',
+      'codexIdentityConfuse',
+      'codexStripIntermediaryUpdates',
+      'codexDisableCloaking',
+      'codexStreamBootstrapBuffering',
+      'codexStreamBootstrapTimeout',
+      'codexOptimizeMultiAgentV2',
+      'codexOrphanDelegationCompatibility',
+      'codexModelLevelCooling',
       'codexHeaderUserAgent',
       'codexHeaderBetaFeatures',
       'host',
@@ -1118,6 +1148,7 @@ function getNextDirtyFields(
       'routingStrategy',
       'routingSessionAffinity',
       'routingSessionAffinityTTL',
+      'routingSessionAffinitySubagents',
     ] as Array<keyof VisualConfigValues>
   ).forEach(updateScalarDirty);
 
@@ -1291,6 +1322,8 @@ export function useVisualConfig() {
       const devin = asRecord(parsed.devin);
       const claudeHeaderDefaults = asRecord(parsed['claude-header-defaults']);
       const codexHeaderDefaults = asRecord(parsed['codex-header-defaults']);
+      const codex = asRecord(parsed.codex);
+      const xai = asRecord(parsed.xai);
 
       const newValues: VisualConfigValues = {
         host: typeof parsed.host === 'string' ? parsed.host : '',
@@ -1317,6 +1350,7 @@ export function useVisualConfig() {
         authDir: typeof parsed['auth-dir'] === 'string' ? parsed['auth-dir'] : '',
         apiKeysText: resolveApiKeysText(parsed),
         pluginsEnabled: Boolean(plugins?.enabled),
+        pluginsDir: typeof plugins?.dir === 'string' ? plugins.dir : '',
         pluginStoreSources: parseStringList(plugins?.['store-sources']),
         pluginStoreAuth: parsePluginStoreAuthRules(plugins?.['store-auth']),
 
@@ -1326,6 +1360,8 @@ export function useVisualConfig() {
         logsMaxTotalSizeMb: String(parsed['logs-max-total-size-mb'] ?? ''),
         errorLogsMaxFiles: String(parsed['error-logs-max-files'] ?? ''),
         usageStatisticsEnabled: Boolean(parsed['usage-statistics-enabled']),
+        usagePersistenceEnabled: Boolean(parsed['usage-persistence-enabled']),
+        requestLog: Boolean(parsed['request-log']),
         redisUsageQueueRetentionSeconds: String(
           parsed['redis-usage-queue-retention-seconds'] ?? ''
         ),
@@ -1337,12 +1373,21 @@ export function useVisualConfig() {
         maxRetryCredentials: String(parsed['max-retry-credentials'] ?? ''),
         maxRetryInterval: String(parsed['max-retry-interval'] ?? ''),
         disableCooling: Boolean(parsed['disable-cooling']),
+        deleteUnauthorizedAuth: Boolean(parsed['delete-unauthorized-auth']),
+        saveCooldownStatus: Boolean(parsed['save-cooldown-status']),
+        transientErrorCooldownSeconds: String(parsed['transient-error-cooldown-seconds'] ?? ''),
         disableImageGeneration: parseDisableImageGenerationMode(parsed['disable-image-generation']),
         gptImage2BaseModel:
           typeof parsed['gpt-image-2-base-model'] === 'string'
             ? parsed['gpt-image-2-base-model']
             : '',
         authAutoRefreshWorkers: String(parsed['auth-auto-refresh-workers'] ?? ''),
+        authLoadWorkers: String(parsed['auth-load-workers'] ?? ''),
+        localModel: Boolean(parsed['local-model']),
+        videoResultAuthCacheTtl:
+          typeof parsed['video-result-auth-cache-ttl'] === 'string'
+            ? parsed['video-result-auth-cache-ttl']
+            : '',
         wsAuth: Boolean(parsed['ws-auth'] ?? DEFAULT_VISUAL_VALUES.wsAuth),
         antigravitySensitiveWords: parseStringList(antigravity?.['sensitive-words']),
         devinSensitiveWords: parseStringList(devin?.['sensitive-words']),
@@ -1368,9 +1413,24 @@ export function useVisualConfig() {
           typeof claudeHeaderDefaults?.arch === 'string' ? claudeHeaderDefaults.arch : '',
         claudeHeaderTimeout:
           typeof claudeHeaderDefaults?.timeout === 'string' ? claudeHeaderDefaults.timeout : '',
+        claudeHeaderTimezone:
+          typeof claudeHeaderDefaults?.timezone === 'string' ? claudeHeaderDefaults.timezone : '',
         claudeHeaderStabilizeDeviceProfile: Boolean(
           claudeHeaderDefaults?.['stabilize-device-profile']
         ),
+        disableClaudeCloakMode: Boolean(parsed['disable-claude-cloak-mode']),
+        xaiInjectXSearch: Boolean(xai?.['inject-x-search']),
+        codexIdentityConfuse: Boolean(codex?.['identity-confuse']),
+        codexStripIntermediaryUpdates: Boolean(codex?.['strip-intermediary-updates']),
+        codexDisableCloaking: Boolean(codex?.['disable-codex-cloaking']),
+        codexStreamBootstrapBuffering: Boolean(codex?.['stream-bootstrap-buffering']),
+        codexStreamBootstrapTimeout:
+          typeof codex?.['stream-bootstrap-timeout'] === 'string'
+            ? codex['stream-bootstrap-timeout']
+            : '',
+        codexOptimizeMultiAgentV2: Boolean(codex?.['optimize-multi-agent-v2']),
+        codexOrphanDelegationCompatibility: Boolean(codex?.['orphan-delegation-compatibility']),
+        codexModelLevelCooling: Boolean(codex?.['model-level-cooling']),
         codexHeaderUserAgent:
           typeof codexHeaderDefaults?.['user-agent'] === 'string'
             ? codexHeaderDefaults['user-agent']
@@ -1400,6 +1460,11 @@ export function useVisualConfig() {
               : typeof routing?.['sessionAffinityTTL'] === 'string'
                 ? routing['sessionAffinityTTL']
                 : '',
+        routingSessionAffinitySubagents: Boolean(
+          routing?.['session-affinity-subagents'] ??
+            routing?.sessionAffinitySubagents ??
+            DEFAULT_VISUAL_VALUES.routingSessionAffinitySubagents
+        ),
 
         payloadDefaultRules: parsePayloadRules(payload?.default),
         payloadDefaultRawRules: parseRawPayloadRules(payload?.['default-raw']),
@@ -1506,12 +1571,16 @@ export function useVisualConfig() {
 
         const pluginsDirty =
           dirtyFields.has('pluginsEnabled') ||
+          dirtyFields.has('pluginsDir') ||
           dirtyFields.has('pluginStoreSources') ||
           shouldWritePluginStoreAuth;
         if (pluginsDirty) {
           ensureMapInDoc(doc, ['plugins']);
           if (dirtyFields.has('pluginsEnabled')) {
             setBooleanInDoc(doc, ['plugins', 'enabled'], values.pluginsEnabled);
+          }
+          if (dirtyFields.has('pluginsDir')) {
+            setStringInDoc(doc, ['plugins', 'dir'], values.pluginsDir);
           }
           if (dirtyFields.has('pluginStoreSources')) {
             setStringListInDoc(doc, ['plugins', 'store-sources'], values.pluginStoreSources);
@@ -1543,6 +1612,12 @@ export function useVisualConfig() {
         if (dirtyFields.has('usageStatisticsEnabled')) {
           setBooleanInDoc(doc, ['usage-statistics-enabled'], values.usageStatisticsEnabled);
         }
+        if (dirtyFields.has('usagePersistenceEnabled')) {
+          setBooleanInDoc(doc, ['usage-persistence-enabled'], values.usagePersistenceEnabled);
+        }
+        if (dirtyFields.has('requestLog')) {
+          setBooleanInDoc(doc, ['request-log'], values.requestLog);
+        }
         if (dirtyFields.has('redisUsageQueueRetentionSeconds')) {
           setIntFromStringInDoc(
             doc,
@@ -1570,6 +1645,19 @@ export function useVisualConfig() {
         if (dirtyFields.has('disableCooling')) {
           setBooleanInDoc(doc, ['disable-cooling'], values.disableCooling);
         }
+        if (dirtyFields.has('deleteUnauthorizedAuth')) {
+          setBooleanInDoc(doc, ['delete-unauthorized-auth'], values.deleteUnauthorizedAuth);
+        }
+        if (dirtyFields.has('saveCooldownStatus')) {
+          setBooleanInDoc(doc, ['save-cooldown-status'], values.saveCooldownStatus);
+        }
+        if (dirtyFields.has('transientErrorCooldownSeconds')) {
+          setIntFromStringInDoc(
+            doc,
+            ['transient-error-cooldown-seconds'],
+            values.transientErrorCooldownSeconds
+          );
+        }
         if (dirtyFields.has('disableImageGeneration')) {
           setDisableImageGenerationInDoc(
             doc,
@@ -1582,6 +1670,18 @@ export function useVisualConfig() {
         }
         if (dirtyFields.has('authAutoRefreshWorkers')) {
           setIntFromStringInDoc(doc, ['auth-auto-refresh-workers'], values.authAutoRefreshWorkers);
+        }
+        if (dirtyFields.has('authLoadWorkers')) {
+          setIntFromStringInDoc(doc, ['auth-load-workers'], values.authLoadWorkers);
+        }
+        if (dirtyFields.has('localModel')) {
+          setBooleanInDoc(doc, ['local-model'], values.localModel);
+        }
+        if (dirtyFields.has('videoResultAuthCacheTtl')) {
+          setStringInDoc(doc, ['video-result-auth-cache-ttl'], values.videoResultAuthCacheTtl);
+        }
+        if (dirtyFields.has('disableClaudeCloakMode')) {
+          setBooleanInDoc(doc, ['disable-claude-cloak-mode'], values.disableClaudeCloakMode);
         }
         if (dirtyFields.has('wsAuth')) setBooleanInDoc(doc, ['ws-auth'], values.wsAuth);
         if (dirtyFields.has('antigravitySensitiveWords')) {
@@ -1633,6 +1733,7 @@ export function useVisualConfig() {
           dirtyFields.has('claudeHeaderOs') ||
           dirtyFields.has('claudeHeaderArch') ||
           dirtyFields.has('claudeHeaderTimeout') ||
+          dirtyFields.has('claudeHeaderTimezone') ||
           dirtyFields.has('claudeHeaderStabilizeDeviceProfile');
         if (claudeHeadersDirty) {
           ensureMapInDoc(doc, ['claude-header-defaults']);
@@ -1665,6 +1766,13 @@ export function useVisualConfig() {
           }
           if (dirtyFields.has('claudeHeaderTimeout')) {
             setStringInDoc(doc, ['claude-header-defaults', 'timeout'], values.claudeHeaderTimeout);
+          }
+          if (dirtyFields.has('claudeHeaderTimezone')) {
+            setStringInDoc(
+              doc,
+              ['claude-header-defaults', 'timezone'],
+              values.claudeHeaderTimezone
+            );
           }
           if (dirtyFields.has('claudeHeaderStabilizeDeviceProfile')) {
             setBooleanInDoc(
@@ -1718,7 +1826,8 @@ export function useVisualConfig() {
         const routingDirty =
           dirtyFields.has('routingStrategy') ||
           dirtyFields.has('routingSessionAffinity') ||
-          dirtyFields.has('routingSessionAffinityTTL');
+          dirtyFields.has('routingSessionAffinityTTL') ||
+          dirtyFields.has('routingSessionAffinitySubagents');
         if (routingDirty) {
           ensureMapInDoc(doc, ['routing']);
           if (dirtyFields.has('routingStrategy')) {
@@ -1734,7 +1843,79 @@ export function useVisualConfig() {
               values.routingSessionAffinityTTL
             );
           }
+          if (dirtyFields.has('routingSessionAffinitySubagents')) {
+            setBooleanInDoc(
+              doc,
+              ['routing', 'session-affinity-subagents'],
+              values.routingSessionAffinitySubagents
+            );
+          }
           deleteIfMapEmpty(doc, ['routing']);
+        }
+
+        const xaiDirty = dirtyFields.has('xaiInjectXSearch');
+        if (xaiDirty) {
+          ensureMapInDoc(doc, ['xai']);
+          setBooleanInDoc(doc, ['xai', 'inject-x-search'], values.xaiInjectXSearch);
+          deleteIfMapEmpty(doc, ['xai']);
+        }
+
+        const codexDirty =
+          dirtyFields.has('codexIdentityConfuse') ||
+          dirtyFields.has('codexStripIntermediaryUpdates') ||
+          dirtyFields.has('codexDisableCloaking') ||
+          dirtyFields.has('codexStreamBootstrapBuffering') ||
+          dirtyFields.has('codexStreamBootstrapTimeout') ||
+          dirtyFields.has('codexOptimizeMultiAgentV2') ||
+          dirtyFields.has('codexOrphanDelegationCompatibility') ||
+          dirtyFields.has('codexModelLevelCooling');
+        if (codexDirty) {
+          ensureMapInDoc(doc, ['codex']);
+          if (dirtyFields.has('codexIdentityConfuse')) {
+            setBooleanInDoc(doc, ['codex', 'identity-confuse'], values.codexIdentityConfuse);
+          }
+          if (dirtyFields.has('codexStripIntermediaryUpdates')) {
+            setBooleanInDoc(
+              doc,
+              ['codex', 'strip-intermediary-updates'],
+              values.codexStripIntermediaryUpdates
+            );
+          }
+          if (dirtyFields.has('codexDisableCloaking')) {
+            setBooleanInDoc(doc, ['codex', 'disable-codex-cloaking'], values.codexDisableCloaking);
+          }
+          if (dirtyFields.has('codexStreamBootstrapBuffering')) {
+            setBooleanInDoc(
+              doc,
+              ['codex', 'stream-bootstrap-buffering'],
+              values.codexStreamBootstrapBuffering
+            );
+          }
+          if (dirtyFields.has('codexStreamBootstrapTimeout')) {
+            setStringInDoc(
+              doc,
+              ['codex', 'stream-bootstrap-timeout'],
+              values.codexStreamBootstrapTimeout
+            );
+          }
+          if (dirtyFields.has('codexOptimizeMultiAgentV2')) {
+            setBooleanInDoc(
+              doc,
+              ['codex', 'optimize-multi-agent-v2'],
+              values.codexOptimizeMultiAgentV2
+            );
+          }
+          if (dirtyFields.has('codexOrphanDelegationCompatibility')) {
+            setBooleanInDoc(
+              doc,
+              ['codex', 'orphan-delegation-compatibility'],
+              values.codexOrphanDelegationCompatibility
+            );
+          }
+          if (dirtyFields.has('codexModelLevelCooling')) {
+            setBooleanInDoc(doc, ['codex', 'model-level-cooling'], values.codexModelLevelCooling);
+          }
+          deleteIfMapEmpty(doc, ['codex']);
         }
 
         const keepaliveSeconds =

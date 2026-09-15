@@ -15,12 +15,18 @@ export type VisualConfigFieldPath =
   | 'maxRetryCredentials'
   | 'maxRetryInterval'
   | 'authAutoRefreshWorkers'
+  | 'authLoadWorkers'
+  | 'transientErrorCooldownSeconds'
   | 'streaming.keepaliveSeconds'
   | 'streaming.bootstrapRetries'
   | 'streaming.nonstreamKeepaliveInterval';
 
 export type VisualConfigValidationErrorCode =
-  'port_range' | 'integer' | 'non_negative_integer' | 'integer_range_1_3600';
+  | 'port_range'
+  | 'integer'
+  | 'non_negative_integer'
+  | 'integer_range_1_3600'
+  | 'integer_range_1_64';
 
 export type VisualConfigValidationErrors = Partial<
   Record<VisualConfigFieldPath, VisualConfigValidationErrorCode>
@@ -96,6 +102,7 @@ export type VisualConfigValues = {
   authDir: string;
   apiKeysText: string;
   pluginsEnabled: boolean;
+  pluginsDir: string;
   pluginStoreSources: string[];
   pluginStoreAuth: PluginStoreAuthRule[];
   debug: boolean;
@@ -104,6 +111,8 @@ export type VisualConfigValues = {
   logsMaxTotalSizeMb: string;
   errorLogsMaxFiles: string;
   usageStatisticsEnabled: boolean;
+  usagePersistenceEnabled: boolean;
+  requestLog: boolean;
   redisUsageQueueRetentionSeconds: string;
   proxyUrl: string;
   forceModelPrefix: boolean;
@@ -112,15 +121,22 @@ export type VisualConfigValues = {
   maxRetryCredentials: string;
   maxRetryInterval: string;
   disableCooling: boolean;
+  deleteUnauthorizedAuth: boolean;
+  saveCooldownStatus: boolean;
+  transientErrorCooldownSeconds: string;
   disableImageGeneration: DisableImageGenerationMode;
   gptImage2BaseModel: string;
   authAutoRefreshWorkers: string;
+  authLoadWorkers: string;
+  localModel: boolean;
+  videoResultAuthCacheTtl: string;
   quotaSwitchProject: boolean;
   quotaSwitchPreviewModel: boolean;
   quotaAntigravityCredits: boolean;
   routingStrategy: RoutingStrategy;
   routingSessionAffinity: boolean;
   routingSessionAffinityTTL: string;
+  routingSessionAffinitySubagents: boolean;
   wsAuth: boolean;
   antigravitySensitiveWords: string[];
   devinSensitiveWords: string[];
@@ -132,7 +148,18 @@ export type VisualConfigValues = {
   claudeHeaderOs: string;
   claudeHeaderArch: string;
   claudeHeaderTimeout: string;
+  claudeHeaderTimezone: string;
   claudeHeaderStabilizeDeviceProfile: boolean;
+  disableClaudeCloakMode: boolean;
+  xaiInjectXSearch: boolean;
+  codexIdentityConfuse: boolean;
+  codexStripIntermediaryUpdates: boolean;
+  codexDisableCloaking: boolean;
+  codexStreamBootstrapBuffering: boolean;
+  codexStreamBootstrapTimeout: string;
+  codexOptimizeMultiAgentV2: boolean;
+  codexOrphanDelegationCompatibility: boolean;
+  codexModelLevelCooling: boolean;
   codexHeaderUserAgent: string;
   codexHeaderBetaFeatures: string;
   payloadDefaultRules: PayloadRule[];
@@ -162,6 +189,7 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   authDir: '',
   apiKeysText: '',
   pluginsEnabled: false,
+  pluginsDir: '',
   pluginStoreSources: [],
   pluginStoreAuth: [],
   debug: false,
@@ -170,6 +198,8 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   logsMaxTotalSizeMb: '',
   errorLogsMaxFiles: '',
   usageStatisticsEnabled: false,
+  usagePersistenceEnabled: false,
+  requestLog: false,
   redisUsageQueueRetentionSeconds: '',
   proxyUrl: '',
   forceModelPrefix: false,
@@ -178,15 +208,22 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   maxRetryCredentials: '',
   maxRetryInterval: '',
   disableCooling: false,
+  deleteUnauthorizedAuth: false,
+  saveCooldownStatus: false,
+  transientErrorCooldownSeconds: '',
   disableImageGeneration: 'false',
   gptImage2BaseModel: '',
   authAutoRefreshWorkers: '',
+  authLoadWorkers: '',
+  localModel: false,
+  videoResultAuthCacheTtl: '',
   quotaSwitchProject: false,
   quotaSwitchPreviewModel: false,
   quotaAntigravityCredits: false,
   routingStrategy: 'round-robin',
   routingSessionAffinity: false,
   routingSessionAffinityTTL: '',
+  routingSessionAffinitySubagents: true,
   wsAuth: true,
   antigravitySensitiveWords: [],
   devinSensitiveWords: [],
@@ -198,7 +235,18 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   claudeHeaderOs: '',
   claudeHeaderArch: '',
   claudeHeaderTimeout: '',
+  claudeHeaderTimezone: '',
   claudeHeaderStabilizeDeviceProfile: false,
+  disableClaudeCloakMode: false,
+  xaiInjectXSearch: false,
+  codexIdentityConfuse: false,
+  codexStripIntermediaryUpdates: false,
+  codexDisableCloaking: false,
+  codexStreamBootstrapBuffering: false,
+  codexStreamBootstrapTimeout: '',
+  codexOptimizeMultiAgentV2: false,
+  codexOrphanDelegationCompatibility: false,
+  codexModelLevelCooling: false,
   codexHeaderUserAgent: '',
   codexHeaderBetaFeatures: '',
   payloadDefaultRules: [],
