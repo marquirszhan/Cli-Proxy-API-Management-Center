@@ -805,6 +805,7 @@
 
 .main-content {
   flex: 1 0 auto;
+  min-width: 0;
   min-height: 100%;
   padding: 70px clamp(20px, 3vw, 48px) 40px;
   display: flex;
