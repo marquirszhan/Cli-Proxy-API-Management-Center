@@ -126,15 +126,30 @@
   white-space: nowrap;
 }
 
+// 六个时间档位比手机上的卡片头还宽；卡片头 / page-transition 会把溢出裁掉，
+// 所以这里自己横向滚动，否则「14 天 / 30 天」在手机上点不到。
 .timeButtons {
   display: flex;
   gap: 4px;
   background: var(--bg-tertiary);
   border-radius: $radius-full;
   padding: 4px;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .timeButton {
+  flex: 0 0 auto;
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -1198,6 +1213,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 // 自定义日期选择器
