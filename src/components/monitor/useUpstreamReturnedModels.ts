@@ -13,8 +13,10 @@ import {
 const APP_LOG_CACHE_MS = 8_000;
 const MISSING_RETRY_MS = 5_000;
 const INFLIGHT_RETRY_MS = 3_000;
-const MAX_DUMP_DOWNLOADS = 12;
-const MAX_DUMP_CHARS = 4_000_000;
+const MATCH_RETRY_MS = 3_000;
+const MATCH_RETRY_MAX = 24;
+const MAX_DUMP_DOWNLOADS = 4;
+const MAX_DUMP_CHARS = 20_000_000;
 
 type DumpCacheEntry =
   | { status: 'ok'; dump: RequestLogDump }
@@ -112,12 +114,19 @@ export function useUpstreamReturnedModels(
   enabled: boolean
 ): Record<string, string> {
   const [matched, setMatched] = useState<Record<string, string>>({});
+  const [retryTick, setRetryTick] = useState(0);
+  const retryTickRef = useRef(0);
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
   const signature = useMemo(
     () => entries.map((entry) => `${entry.id}\t${entry.timestampMs}\t${entry.model}`).join('|'),
     [entries]
   );
+
+  useEffect(() => {
+    retryTickRef.current = 0;
+    setRetryTick(0);
+  }, [signature]);
 
   useEffect(() => {
     const currentEntries = entriesRef.current;
@@ -127,6 +136,7 @@ export function useUpstreamReturnedModels(
     }
 
     let cancelled = false;
+    const retry = { id: undefined as number | undefined };
     const rows = currentEntries.map((entry) => ({
       id: entry.id,
       timestampMs: entry.timestampMs,
@@ -140,13 +150,26 @@ export function useUpstreamReturnedModels(
       const ids = selectCandidateHintIds(rows, hints);
       const dumps = await loadDumps(ids, hints);
       if (cancelled) return;
-      setMatched(matchUpstreamModels(rows, dumps, hints));
+      const next = matchUpstreamModels(rows, dumps, hints);
+      setMatched(next);
+      const blank = rows.some((row) => !next[row.id]);
+      const pending =
+        ids.length === 0 ||
+        ids.some((id) => dumpCache.get(id)?.status === 'missing') ||
+        hints.some((hint) => ids.includes(hint.id) && !hint.completed);
+      if (blank && pending && retryTickRef.current < MATCH_RETRY_MAX) {
+        retry.id = window.setTimeout(() => {
+          retryTickRef.current += 1;
+          setRetryTick(retryTickRef.current);
+        }, MATCH_RETRY_MS);
+      }
     })();
 
     return () => {
       cancelled = true;
+      if (retry.id !== undefined) window.clearTimeout(retry.id);
     };
-  }, [enabled, signature]);
+  }, [enabled, signature, retryTick]);
 
   return matched;
 }

@@ -67,6 +67,28 @@ describe('parseRequestLogDump', () => {
     expect(parsed.upstreamEvents.map((event) => event.model)).toEqual(['gpt-4o-2024-08-06']);
   });
 
+  test('scans a long websocket dump for the response model instead of walking every token frame', () => {
+    const parsed = parseRequestLogDump(
+      `=== REQUEST INFO ===
+Timestamp: 2026-09-19T02:24:48.759+08:00
+
+=== API WEBSOCKET TIMELINE ===
+Timestamp: 2026-09-19T02:24:52.278+08:00
+Event: api.websocket.request
+{"type":"response.create","model":"gpt-6-astra","input":[]}
+
+${'n'.repeat(301_000)}
+Timestamp: 2026-09-19T02:27:36.922+08:00
+Event: api.websocket.response
+{"type":"response.completed","response":{"id":"resp_1","object":"response","status":"completed","max_tool_calls":null,"model":"gpt-6-astra"}}
+`
+    );
+    expect(parsed.requestedModels).toEqual(['gpt-6-astra']);
+    expect(parsed.upstreamEvents.map((event) => event.model)).toEqual(['gpt-6-astra']);
+    expect(parsed.startedAt).toBe(Date.parse('2026-09-19T02:24:48.759+08:00'));
+    expect(parsed.endedAt).toBe(Date.parse('2026-09-19T02:27:36.922+08:00'));
+  });
+
   test('reads Gemini modelVersion from API RESPONSE and keeps it distinct from the requested alias', () => {
     const parsed = parseRequestLogDump(`=== REQUEST INFO ===
 URL: /v1/messages?beta=true
@@ -101,8 +123,8 @@ describe('collectRequestIdHints', () => {
     expect(hints).toEqual([
       {
         id: '7f72c271',
-        firstTs: Date.parse('2026-09-19T01:26:04'),
-        lastTs: Date.parse('2026-09-19T01:27:13'),
+        firstTs: Date.parse('2026-09-19T01:26:04+08:00'),
+        lastTs: Date.parse('2026-09-19T01:27:13+08:00'),
         models: ['gpt-6-astra'],
         apiRequest: true,
         completed: true,

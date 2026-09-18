@@ -69,8 +69,25 @@ const RESPONSE_LIKE_EVENTS = new Set([
   'websocket.response',
 ]);
 
+const HAS_EXPLICIT_TZ_RE = /(?:[zZ]|[+-]\d{2}:?\d{2})$/;
+const CPA_NAIVE_LOG_OFFSET = '+08:00';
+const LARGE_DUMP_CHARS = 300_000;
+const REQUEST_CREATE_MODEL_RE =
+  /"type"\s*:\s*"response\.create"[\s\S]{0,240}?"model"\s*:\s*"([^"]+)"/g;
+const UPSTREAM_RESPONSE_MODEL_RE =
+  /"object"\s*:\s*"(?:response|chat\.completion(?:\.chunk)?)"[\s\S]{0,2500}?"model"\s*:\s*"([^"]+)"/g;
+const RESPONSE_EVENT_MODEL_RE =
+  /"type"\s*:\s*"response\.(?:created|in_progress|completed)"[\s\S]{0,3000}?"model"\s*:\s*"([^"]+)"/g;
+const MODEL_VERSION_RE = /"modelVersion"\s*:\s*"([^"]+)"/g;
+const TIMESTAMP_LINE_RE = /^Timestamp:\s*(.+)$/gm;
+
 const parseTimestamp = (value: string): number => {
-  const ms = Date.parse(value.trim().replace(' ', 'T'));
+  const normalized = value.trim().replace(' ', 'T');
+  if (!normalized) return 0;
+  const withOffset = HAS_EXPLICIT_TZ_RE.test(normalized)
+    ? normalized
+    : `${normalized}${CPA_NAIVE_LOG_OFFSET}`;
+  const ms = Date.parse(withOffset);
   return Number.isFinite(ms) ? ms : 0;
 };
 
@@ -243,7 +260,59 @@ export const collectRequestIdHints = (lines: string[]): RequestIdHint[] => {
   return [...byId.values()].filter((hint) => hint.apiRequest || hint.models.length > 0);
 };
 
-export const parseRequestLogDump = (text: string, id?: string): RequestLogDump => {
+export const scanRequestLogDump = (text: string, id?: string): RequestLogDump => {
+  let startedAt = 0;
+  let endedAt = 0;
+  TIMESTAMP_LINE_RE.lastIndex = 0;
+  let tsMatch: RegExpExecArray | null;
+  while ((tsMatch = TIMESTAMP_LINE_RE.exec(text))) {
+    const at = parseTimestamp(tsMatch[1]);
+    if (!at) continue;
+    if (!startedAt || at < startedAt) startedAt = at;
+    if (at > endedAt) endedAt = at;
+  }
+
+  const requestInfoTs = text.match(REQUEST_INFO_TS_RE);
+  if (requestInfoTs) {
+    const at = parseTimestamp(requestInfoTs[1]);
+    if (at && (!startedAt || at < startedAt)) startedAt = at;
+  }
+
+  const requestedModels: string[] = [];
+  REQUEST_CREATE_MODEL_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = REQUEST_CREATE_MODEL_RE.exec(text))) {
+    requestedModels.push(match[1]);
+  }
+  const requestHead = text.slice(0, 120_000);
+  const requestBodyModel = requestHead.match(
+    /=== REQUEST BODY ===[\s\S]{0,20000}?"model"\s*:\s*"([^"]+)"/
+  );
+  if (requestBodyModel) requestedModels.push(requestBodyModel[1]);
+
+  const upstreamModels: string[] = [];
+  const pushUpstream = (model: string) => {
+    if (!model || IGNORED_MODEL_KEYS.has(model)) return;
+    upstreamModels.push(model);
+  };
+  UPSTREAM_RESPONSE_MODEL_RE.lastIndex = 0;
+  while ((match = UPSTREAM_RESPONSE_MODEL_RE.exec(text))) pushUpstream(match[1]);
+  RESPONSE_EVENT_MODEL_RE.lastIndex = 0;
+  while ((match = RESPONSE_EVENT_MODEL_RE.exec(text))) pushUpstream(match[1]);
+  MODEL_VERSION_RE.lastIndex = 0;
+  while ((match = MODEL_VERSION_RE.exec(text))) pushUpstream(match[1]);
+
+  if (!endedAt) endedAt = startedAt;
+  return {
+    id,
+    startedAt,
+    endedAt,
+    requestedModels: unique(requestedModels),
+    upstreamEvents: unique(upstreamModels).map((model) => ({ at: startedAt, model })),
+  };
+};
+
+const parseRequestLogDumpDetailed = (text: string, id?: string): RequestLogDump => {
   const sections = splitSections(text);
   const requestedModels: string[] = [];
   const upstreamEvents: Array<{ at: number; model: string }> = [];
@@ -346,6 +415,20 @@ export const parseRequestLogDump = (text: string, id?: string): RequestLogDump =
   };
 };
 
+export const parseRequestLogDump = (text: string, id?: string): RequestLogDump => {
+  if (text.length > LARGE_DUMP_CHARS) return scanRequestLogDump(text, id);
+  const parsed = parseRequestLogDumpDetailed(text, id);
+  if (parsed.upstreamEvents.length) return parsed;
+  const scanned = scanRequestLogDump(text, id);
+  return {
+    id,
+    startedAt: parsed.startedAt || scanned.startedAt,
+    endedAt: Math.max(parsed.endedAt, scanned.endedAt),
+    requestedModels: unique([...parsed.requestedModels, ...scanned.requestedModels]),
+    upstreamEvents: scanned.upstreamEvents,
+  };
+};
+
 export const selectCandidateHintIds = (
   entries: MonitorRowForUpstreamMatch[],
   hints: RequestIdHint[],
@@ -363,8 +446,10 @@ export const selectCandidateHintIds = (
     if (hint.firstTs - expandMs > pageMax) return false;
     return true;
   });
-  if (overlapping.length) return overlapping.map((hint) => hint.id);
-  return hints.filter(matchesModel).map((hint) => hint.id);
+  const newestFirst = (items: RequestIdHint[]) =>
+    [...items].sort((left, right) => right.lastTs - left.lastTs || right.firstTs - left.firstTs);
+  if (overlapping.length) return newestFirst(overlapping).map((hint) => hint.id);
+  return newestFirst(hints.filter(matchesModel)).map((hint) => hint.id);
 };
 
 const dumpWindow = (dump: RequestLogDump, hint?: RequestIdHint) => {
