@@ -66,6 +66,29 @@ describe('parseRequestLogDump', () => {
     const parsed = parseRequestLogDump(snapshotDump);
     expect(parsed.upstreamEvents.map((event) => event.model)).toEqual(['gpt-4o-2024-08-06']);
   });
+
+  test('reads Gemini modelVersion from API RESPONSE and keeps it distinct from the requested alias', () => {
+    const parsed = parseRequestLogDump(`=== REQUEST INFO ===
+URL: /v1/messages?beta=true
+Timestamp: 2026-09-19T01:57:49.138+08:00
+
+=== REQUEST BODY ===
+{"model":"gemini-3.8-flash-high","messages":[]}
+
+=== API REQUEST 1 ===
+{"model":"gemini-3.8-flash-high"}
+
+=== API RESPONSE 1 ===
+{"candidates":[{"content":{"parts":[{"text":"ok"}]}}],"modelVersion":"gemini-3.8-flash"}
+
+=== RESPONSE ===
+{"model":"gemini-3.8-flash"}
+`);
+    expect(parsed.requestedModels).toEqual(['gemini-3.8-flash-high']);
+    expect([...new Set(parsed.upstreamEvents.map((event) => event.model))]).toEqual([
+      'gemini-3.8-flash',
+    ]);
+  });
 });
 
 describe('collectRequestIdHints', () => {
@@ -82,6 +105,7 @@ describe('collectRequestIdHints', () => {
         lastTs: Date.parse('2026-09-19T01:27:13'),
         models: ['gpt-6-astra'],
         apiRequest: true,
+        completed: true,
       },
     ]);
   });
@@ -183,6 +207,7 @@ describe('selectCandidateHintIds', () => {
           lastTs: Date.parse('2026-09-19T01:27:13+08:00'),
           models: ['gpt-6-astra'],
           apiRequest: true,
+          completed: true,
         },
         {
           id: 'drop',
@@ -190,6 +215,7 @@ describe('selectCandidateHintIds', () => {
           lastTs: Date.parse('2026-09-18T10:01:00+08:00'),
           models: ['gpt-6-astra'],
           apiRequest: true,
+          completed: true,
         },
       ]
     );

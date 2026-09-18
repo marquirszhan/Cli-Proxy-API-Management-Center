@@ -4,6 +4,7 @@ export interface RequestIdHint {
   lastTs: number;
   models: string[];
   apiRequest: boolean;
+  completed: boolean;
 }
 
 export interface RequestLogDump {
@@ -227,7 +228,7 @@ export const collectRequestIdHints = (lines: string[]): RequestIdHint[] => {
     if (!ts) continue;
     let hint = byId.get(id);
     if (!hint) {
-      hint = { id, firstTs: ts, lastTs: ts, models: [], apiRequest: false };
+      hint = { id, firstTs: ts, lastTs: ts, models: [], apiRequest: false, completed: false };
       byId.set(id, hint);
     }
     hint.firstTs = Math.min(hint.firstTs, ts);
@@ -235,6 +236,9 @@ export const collectRequestIdHints = (lines: string[]): RequestIdHint[] => {
     const model = raw.match(MODEL_EQ_RE)?.[1];
     if (model) hint.models = unique([...hint.models, model]);
     if (PATH_RE.test(raw) || /\/v1(?:beta)?\//.test(raw)) hint.apiRequest = true;
+    if (/\/v1(?:beta)?\//.test(raw) && /\b[1-5]\d{2}\b/.test(raw) && !/\/v0\/management\//.test(raw)) {
+      hint.completed = true;
+    }
   }
   return [...byId.values()].filter((hint) => hint.apiRequest || hint.models.length > 0);
 };

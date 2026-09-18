@@ -11,13 +11,14 @@ import {
 } from '@/utils/requestLogUpstreamModel';
 
 const APP_LOG_CACHE_MS = 8_000;
-const MISSING_RETRY_MS = 60_000;
+const MISSING_RETRY_MS = 5_000;
+const INFLIGHT_RETRY_MS = 3_000;
 const MAX_DUMP_DOWNLOADS = 12;
 const MAX_DUMP_CHARS = 4_000_000;
 
 type DumpCacheEntry =
   | { status: 'ok'; dump: RequestLogDump }
-  | { status: 'missing'; at: number };
+  | { status: 'missing'; at: number; retryMs: number };
 
 let appLogCache: { at: number; lines: string[] } | null = null;
 const dumpCache = new Map<string, DumpCacheEntry>();
@@ -44,10 +45,11 @@ const loadAppLogLines = async (): Promise<string[]> => {
   }
 };
 
-const loadDump = (id: string): Promise<DumpCacheEntry> => {
+const loadDump = (id: string, completed: boolean): Promise<DumpCacheEntry> => {
   const cached = dumpCache.get(id);
   if (cached?.status === 'ok') return Promise.resolve(cached);
-  if (cached?.status === 'missing' && Date.now() - cached.at < MISSING_RETRY_MS) {
+  const retryMs = cached?.status === 'missing' ? cached.retryMs : MISSING_RETRY_MS;
+  if (cached?.status === 'missing' && Date.now() - cached.at < retryMs) {
     return Promise.resolve(cached);
   }
   const inflight = dumpInflight.get(id);
@@ -57,13 +59,13 @@ const loadDump = (id: string): Promise<DumpCacheEntry> => {
     .fetchRequestLogText(id)
     .then((text): DumpCacheEntry => {
       if (!text || text.length > MAX_DUMP_CHARS) {
-        return { status: 'missing', at: Date.now() };
+        return { status: 'missing', at: Date.now(), retryMs: MISSING_RETRY_MS };
       }
       return { status: 'ok', dump: parseRequestLogDump(text, id) };
     })
     .catch((err: unknown): DumpCacheEntry => {
-      if (isMissingStatus(err)) return { status: 'missing', at: Date.now() };
-      return { status: 'missing', at: Date.now() };
+      const wait = isMissingStatus(err) && !completed ? INFLIGHT_RETRY_MS : MISSING_RETRY_MS;
+      return { status: 'missing', at: Date.now(), retryMs: wait };
     })
     .then((entry) => {
       dumpCache.set(id, entry);
@@ -77,6 +79,7 @@ const loadDump = (id: string): Promise<DumpCacheEntry> => {
 
 const loadDumps = async (ids: string[], hints: RequestIdHint[]): Promise<RequestLogDump[]> => {
   const dumps: RequestLogDump[] = [];
+  const hintById = new Map(hints.map((hint) => [hint.id, hint]));
   const queue = ids.slice(0, MAX_DUMP_DOWNLOADS);
   const workers = Math.min(2, queue.length);
   let cursor = 0;
@@ -86,7 +89,8 @@ const loadDumps = async (ids: string[], hints: RequestIdHint[]): Promise<Request
       const index = cursor;
       cursor += 1;
       const id = queue[index];
-      const entry = await loadDump(id);
+      const hint = hintById.get(id);
+      const entry = await loadDump(id, hint?.completed === true);
       if (entry.status === 'ok') {
         const hint = hints.find((item) => item.id === id);
         dumps.push({
