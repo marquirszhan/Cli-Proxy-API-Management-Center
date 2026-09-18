@@ -70,6 +70,12 @@ export interface MonitorRequestLogItem {
   request_count: number;
   success_rate: number;
   recent_requests: MonitorRecentRequest[];
+  upstream_model?: string;
+  upstreamModel?: string;
+  response_model?: string;
+  responseModel?: string;
+  returned_model?: string;
+  returnedModel?: string;
 }
 
 export interface MonitorRequestLogsResponse {

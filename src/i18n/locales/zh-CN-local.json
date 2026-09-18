@@ -149,6 +149,7 @@
       "header_request_type": "请求类型",
       "header_request_key": "请求 Key",
       "header_model": "请求模型",
+      "header_upstream_model": "上游返回模型",
       "header_source": "请求渠道",
       "header_status": "请求状态",
       "header_recent": "最近请求状态",

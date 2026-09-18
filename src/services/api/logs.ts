@@ -62,6 +62,18 @@ const normalizeLogsResponse = (data: unknown): LogsResponse => {
   };
 };
 
+const responseDataToText = async (data: unknown): Promise<string> => {
+  if (data instanceof Blob) return data.text();
+  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data);
+  if (typeof data === 'string') return data;
+  if (data === undefined || data === null) return '';
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return String(data);
+  }
+};
+
 export const logsApi = {
   async fetchLogs(params: LogsQuery = {}): Promise<LogsResponse> {
     const data = await apiClient.get('/logs', { params, timeout: LOGS_TIMEOUT_MS });
@@ -84,4 +96,9 @@ export const logsApi = {
       responseType: 'blob',
       timeout: LOGS_TIMEOUT_MS,
     }),
+
+  async fetchRequestLogText(id: string): Promise<string> {
+    const response = await logsApi.downloadRequestLogById(id);
+    return responseDataToText(response.data);
+  },
 };

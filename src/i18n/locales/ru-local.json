@@ -31,7 +31,8 @@
     "logs": {
       "fast_badge": "FAST",
       "all_request_keys": "Все ключи запросов",
-      "header_request_key": "Ключ запроса"
+      "header_request_key": "Ключ запроса",
+      "header_upstream_model": "Модель upstream"
     }
   },
   "nav": {

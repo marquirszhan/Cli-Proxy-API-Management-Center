@@ -149,6 +149,7 @@
       "header_request_type": "Type",
       "header_request_key": "Request Key",
       "header_model": "Model",
+      "header_upstream_model": "Upstream model",
       "header_source": "Source",
       "header_status": "Status",
       "header_recent": "Recent Status",

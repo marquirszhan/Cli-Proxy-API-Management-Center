@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 import { monitorApi, type MonitorRequestLogItem } from '@/services/api';
+import { useConfigStore } from '@/stores/useConfigStore';
+import { useUpstreamReturnedModels } from './useUpstreamReturnedModels';
 import { TimeRangeSelector, formatTimeRangeCaption, type TimeRange } from './TimeRangeSelector';
 import {
   REQUEST_LOG_FILTER_KEYS,
@@ -27,6 +29,7 @@ import {
   formatMonitorCost,
   type DateRange,
 } from '@/utils/monitor';
+import { readProvidedUpstreamModel } from '@/utils/requestLogUpstreamModel';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface RequestLogsProps {
@@ -58,6 +61,7 @@ interface LogEntry {
   stream: boolean | null;
   fast: boolean | null;
   recentRequests: { failed: boolean; timestamp: number }[];
+  providedUpstreamModel: string;
 }
 
 const REQUEST_LOG_NUMERIC_COLUMN_KEYS = new Set<RequestLogTableColumnKey>([
@@ -77,6 +81,7 @@ export function RequestLogs({
   apiFilter,
 }: RequestLogsProps) {
   const { t } = useTranslation();
+  const requestLogEnabled = useConfigStore((state) => state.config?.requestLog ?? false);
   const [filterModel, setFilterModel] = useState('');
   const [filterRequestKey, setFilterRequestKey] = useState('');
   const [filterSource, setFilterSource] = useState('');
@@ -157,6 +162,7 @@ export function RequestLogs({
           failed: !!req.failed,
           timestamp: req.timestamp ? new Date(req.timestamp).getTime() : 0,
         })),
+        providedUpstreamModel: readProvidedUpstreamModel(item),
       };
     },
     [providerMap]
@@ -257,6 +263,22 @@ export function RequestLogs({
     fetchLogData();
   }, [enabled, fetchLogData, refreshKey]);
 
+  const matchRows = useMemo(
+    () =>
+      logEntries
+        .filter((entry) => !entry.providedUpstreamModel)
+        .map((entry) => ({
+          id: entry.id,
+          timestampMs: entry.timestampMs,
+          model: entry.model,
+        })),
+    [logEntries]
+  );
+  const matchedUpstreamModels = useUpstreamReturnedModels(
+    matchRows,
+    enabled && requestLogEnabled
+  );
+
   const showLoading = (logLoading || loading) && logEntries.length === 0;
 
   const sourceFilterOptions = useMemo(
@@ -295,6 +317,10 @@ export function RequestLogs({
     switch (column) {
       case 'model':
         return <td title={entry.model}>{entry.model}</td>;
+      case 'upstreamModel': {
+        const upstreamModel = entry.providedUpstreamModel || matchedUpstreamModels[entry.id] || '';
+        return <td title={upstreamModel || undefined}>{upstreamModel}</td>;
+      }
       case 'requestKey': {
         const requestKey = entry.requestKey || '-';
         return <td title={requestKey}>{formatRequestKeyDisplay(requestKey)}</td>;
