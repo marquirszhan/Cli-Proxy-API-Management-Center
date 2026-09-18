@@ -29,12 +29,10 @@ const UPSTREAM_MODEL_FIELDS = [
   'returnedModel',
 ] as const;
 
-export const readProvidedUpstreamModel = (item: {
-  [key: string]: unknown;
-  model?: string;
-}): string => {
+export const readProvidedUpstreamModel = (item: object): string => {
+  const record = item as Record<string, unknown>;
   for (const key of UPSTREAM_MODEL_FIELDS) {
-    const value = item[key];
+    const value = record[key];
     if (typeof value === 'string' && value.trim()) return value.trim();
   }
   return '';
