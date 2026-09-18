@@ -58,6 +58,14 @@ class ApiClient {
     return this.configRevision;
   }
 
+  getBaseUrl(): string {
+    return this.apiBase;
+  }
+
+  getManagementKey(): string {
+    return this.managementKey;
+  }
+
   private readHeader(headers: Record<string, unknown> | undefined, keys: string[]): string | null {
     if (!headers) return null;
 

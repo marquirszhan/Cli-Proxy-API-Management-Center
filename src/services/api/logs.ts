@@ -98,7 +98,36 @@ export const logsApi = {
     }),
 
   async fetchRequestLogText(id: string): Promise<string> {
+    const maxChars = 1_500_000;
+    const base = apiClient.getBaseUrl().replace(/\/$/, '');
+    const key = apiClient.getManagementKey();
+    if (base && typeof fetch === 'function') {
+      const response = await fetch(`${base}/request-log-by-id/${encodeURIComponent(id)}`, {
+        headers: key ? { Authorization: `Bearer ${key}` } : undefined,
+      });
+      if (!response.ok) {
+        const error = new Error(`HTTP ${response.status}`) as Error & { status: number };
+        error.status = response.status;
+        throw error;
+      }
+      if (!response.body) {
+        return (await response.text()).slice(0, maxChars);
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let text = '';
+      try {
+        while (text.length < maxChars) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          text += decoder.decode(value, { stream: true });
+        }
+      } finally {
+        await reader.cancel().catch(() => undefined);
+      }
+      return text.slice(0, maxChars);
+    }
     const response = await logsApi.downloadRequestLogById(id);
-    return responseDataToText(response.data);
+    return (await responseDataToText(response.data)).slice(0, maxChars);
   },
 };

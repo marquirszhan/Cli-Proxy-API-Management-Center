@@ -15,8 +15,8 @@ const MISSING_RETRY_MS = 5_000;
 const INFLIGHT_RETRY_MS = 3_000;
 const MATCH_RETRY_MS = 3_000;
 const MATCH_RETRY_MAX = 24;
-const MAX_DUMP_DOWNLOADS = 4;
-const MAX_DUMP_CHARS = 20_000_000;
+const MAX_COMPLETED_DUMPS = 8;
+const MAX_PENDING_DUMPS = 2;
 
 type DumpCacheEntry =
   | { status: 'ok'; dump: RequestLogDump }
@@ -39,7 +39,7 @@ const loadAppLogLines = async (): Promise<string[]> => {
     return appLogCache.lines;
   }
   try {
-    const response = await logsApi.fetchLogs({ limit: 500 });
+    const response = await logsApi.fetchLogs({ limit: 5000 });
     appLogCache = { at: Date.now(), lines: response.lines };
     return response.lines;
   } catch {
@@ -60,7 +60,7 @@ const loadDump = (id: string, completed: boolean): Promise<DumpCacheEntry> => {
   const request = logsApi
     .fetchRequestLogText(id)
     .then((text): DumpCacheEntry => {
-      if (!text || text.length > MAX_DUMP_CHARS) {
+      if (!text) {
         return { status: 'missing', at: Date.now(), retryMs: MISSING_RETRY_MS };
       }
       return { status: 'ok', dump: parseRequestLogDump(text, id) };
@@ -82,7 +82,9 @@ const loadDump = (id: string, completed: boolean): Promise<DumpCacheEntry> => {
 const loadDumps = async (ids: string[], hints: RequestIdHint[]): Promise<RequestLogDump[]> => {
   const dumps: RequestLogDump[] = [];
   const hintById = new Map(hints.map((hint) => [hint.id, hint]));
-  const queue = ids.slice(0, MAX_DUMP_DOWNLOADS);
+  const completed = ids.filter((id) => hintById.get(id)?.completed);
+  const pending = ids.filter((id) => !hintById.get(id)?.completed);
+  const queue = [...completed.slice(0, MAX_COMPLETED_DUMPS), ...pending.slice(0, MAX_PENDING_DUMPS)];
   const workers = Math.min(2, queue.length);
   let cursor = 0;
 
@@ -151,7 +153,13 @@ export function useUpstreamReturnedModels(
       const dumps = await loadDumps(ids, hints);
       if (cancelled) return;
       const next = matchUpstreamModels(rows, dumps, hints);
-      setMatched(next);
+      setMatched((prev) => {
+        const merged: Record<string, string> = {};
+        for (const row of rows) {
+          merged[row.id] = next[row.id] || prev[row.id] || '';
+        }
+        return merged;
+      });
       const blank = rows.some((row) => !next[row.id]);
       const pending =
         ids.length === 0 ||

@@ -107,6 +107,11 @@ Timestamp: 2026-09-19T01:57:49.138+08:00
 {"model":"gemini-3.8-flash"}
 `);
     expect(parsed.requestedModels).toEqual(['gemini-3.8-flash-high']);
+    expect(
+      parseRequestLogDump(`=== API RESPONSE 1 ===
+{"usageMetadata":{"thoughtsTokenCount":1},"modelVersion": "gemini-3.8-flash"}
+`).upstreamEvents.map((event) => event.model)
+    ).toEqual(['gemini-3.8-flash']);
     expect([...new Set(parsed.upstreamEvents.map((event) => event.model))]).toEqual([
       'gemini-3.8-flash',
     ]);
@@ -219,6 +224,32 @@ describe('readProvidedUpstreamModel', () => {
 });
 
 describe('selectCandidateHintIds', () => {
+  test('prefers completed dumps with a model over newer in-flight ids', () => {
+    const pageTs = Date.parse('2026-09-19T02:04:53+08:00');
+    const ids = selectCandidateHintIds(
+      [{ id: 'row', timestampMs: pageTs, model: 'gemini-3.8-flash-high' }],
+      [
+        {
+          id: 'inflight',
+          firstTs: Date.parse('2026-09-19T02:40:00+08:00'),
+          lastTs: Date.parse('2026-09-19T02:40:00+08:00'),
+          models: [],
+          apiRequest: true,
+          completed: false,
+        },
+        {
+          id: 'ready',
+          firstTs: Date.parse('2026-09-19T02:04:46+08:00'),
+          lastTs: Date.parse('2026-09-19T02:04:53+08:00'),
+          models: ['gemini-3.8-flash-high'],
+          apiRequest: true,
+          completed: true,
+        },
+      ]
+    );
+    expect(ids[0]).toBe('ready');
+  });
+
   test('only keeps ids that overlap the visible page', () => {
     const ids = selectCandidateHintIds(
       [{ id: 'row', timestampMs: Date.parse('2026-09-19T01:26:04+08:00'), model: 'gpt-6-astra' }],

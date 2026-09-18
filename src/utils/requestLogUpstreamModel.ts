@@ -72,14 +72,17 @@ const RESPONSE_LIKE_EVENTS = new Set([
 const HAS_EXPLICIT_TZ_RE = /(?:[zZ]|[+-]\d{2}:?\d{2})$/;
 const CPA_NAIVE_LOG_OFFSET = '+08:00';
 const LARGE_DUMP_CHARS = 300_000;
-const REQUEST_CREATE_MODEL_RE =
-  /"type"\s*:\s*"response\.create"[\s\S]{0,240}?"model"\s*:\s*"([^"]+)"/g;
-const UPSTREAM_RESPONSE_MODEL_RE =
-  /"object"\s*:\s*"(?:response|chat\.completion(?:\.chunk)?)"[\s\S]{0,2500}?"model"\s*:\s*"([^"]+)"/g;
-const RESPONSE_EVENT_MODEL_RE =
-  /"type"\s*:\s*"response\.(?:created|in_progress|completed)"[\s\S]{0,3000}?"model"\s*:\s*"([^"]+)"/g;
-const MODEL_VERSION_RE = /"modelVersion"\s*:\s*"([^"]+)"/g;
-const TIMESTAMP_LINE_RE = /^Timestamp:\s*(.+)$/gm;
+const MODEL_NEAR_ANCHORS: Array<{ needle: string; window: number; key: 'model' | 'modelVersion' }> =
+  [
+    { needle: '"type":"response.create"', window: 280, key: 'model' },
+    { needle: '"object":"response"', window: 2500, key: 'model' },
+    { needle: '"object":"chat.completion"', window: 800, key: 'model' },
+    { needle: '"object":"chat.completion.chunk"', window: 800, key: 'model' },
+    { needle: '"type":"response.created"', window: 3000, key: 'model' },
+    { needle: '"type":"response.completed"', window: 3000, key: 'model' },
+    { needle: '"type":"response.in_progress"', window: 3000, key: 'model' },
+    { needle: '"modelVersion"', window: 80, key: 'modelVersion' },
+  ];
 
 const parseTimestamp = (value: string): number => {
   const normalized = value.trim().replace(' ', 'T');
@@ -260,18 +263,65 @@ export const collectRequestIdHints = (lines: string[]): RequestIdHint[] => {
   return [...byId.values()].filter((hint) => hint.apiRequest || hint.models.length > 0);
 };
 
-export const scanRequestLogDump = (text: string, id?: string): RequestLogDump => {
-  let startedAt = 0;
-  let endedAt = 0;
-  TIMESTAMP_LINE_RE.lastIndex = 0;
-  let tsMatch: RegExpExecArray | null;
-  while ((tsMatch = TIMESTAMP_LINE_RE.exec(text))) {
-    const at = parseTimestamp(tsMatch[1]);
-    if (!at) continue;
-    if (!startedAt || at < startedAt) startedAt = at;
-    if (at > endedAt) endedAt = at;
+const readQuotedValue = (text: string, key: string, from: number, to: number): string => {
+  const prefix = `"${key}"`;
+  let at = text.indexOf(prefix, from);
+  while (at >= 0 && at < to) {
+    let index = at + prefix.length;
+    while (index < to && (text[index] === ' ' || text[index] === '\t')) index += 1;
+    if (text[index] === ':') {
+      index += 1;
+      while (index < to && (text[index] === ' ' || text[index] === '\t')) index += 1;
+      if (text[index] === '"') {
+        const start = index + 1;
+        const end = text.indexOf('"', start);
+        if (end > start && end <= to) return text.slice(start, end);
+      }
+    }
+    at = text.indexOf(prefix, at + prefix.length);
   }
+  return '';
+};
 
+const modelsNearAnchors = (
+  text: string,
+  requested: string[],
+  upstream: string[]
+): void => {
+  for (const anchor of MODEL_NEAR_ANCHORS) {
+    let from = 0;
+    let found = 0;
+    while (found < 8) {
+      const at = text.indexOf(anchor.needle, from);
+      if (at < 0) break;
+      const model = readQuotedValue(text, anchor.key, at, at + anchor.window);
+      if (model && !IGNORED_MODEL_KEYS.has(model)) {
+        if (anchor.needle.includes('response.create')) requested.push(model);
+        else upstream.push(model);
+        found += 1;
+      }
+      from = at + anchor.needle.length;
+    }
+  }
+};
+
+const firstAndLastTimestamp = (text: string): { startedAt: number; endedAt: number } => {
+  const needle = 'Timestamp: ';
+  const firstAt = text.indexOf(needle);
+  const lastAt = text.lastIndexOf(needle);
+  const readAt = (index: number): number => {
+    if (index < 0) return 0;
+    const end = text.indexOf('\n', index);
+    return parseTimestamp(text.slice(index + needle.length, end < 0 ? index + 80 : end));
+  };
+  const startedAt = readAt(firstAt);
+  const endedAt = lastAt === firstAt ? startedAt : readAt(lastAt);
+  return { startedAt, endedAt: endedAt || startedAt };
+};
+
+export const scanRequestLogDump = (text: string, id?: string): RequestLogDump => {
+  const { startedAt: scannedStart, endedAt } = firstAndLastTimestamp(text);
+  let startedAt = scannedStart;
   const requestInfoTs = text.match(REQUEST_INFO_TS_RE);
   if (requestInfoTs) {
     const at = parseTimestamp(requestInfoTs[1]);
@@ -279,34 +329,18 @@ export const scanRequestLogDump = (text: string, id?: string): RequestLogDump =>
   }
 
   const requestedModels: string[] = [];
-  REQUEST_CREATE_MODEL_RE.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = REQUEST_CREATE_MODEL_RE.exec(text))) {
-    requestedModels.push(match[1]);
-  }
-  const requestHead = text.slice(0, 120_000);
-  const requestBodyModel = requestHead.match(
-    /=== REQUEST BODY ===[\s\S]{0,20000}?"model"\s*:\s*"([^"]+)"/
-  );
-  if (requestBodyModel) requestedModels.push(requestBodyModel[1]);
-
   const upstreamModels: string[] = [];
-  const pushUpstream = (model: string) => {
-    if (!model || IGNORED_MODEL_KEYS.has(model)) return;
-    upstreamModels.push(model);
-  };
-  UPSTREAM_RESPONSE_MODEL_RE.lastIndex = 0;
-  while ((match = UPSTREAM_RESPONSE_MODEL_RE.exec(text))) pushUpstream(match[1]);
-  RESPONSE_EVENT_MODEL_RE.lastIndex = 0;
-  while ((match = RESPONSE_EVENT_MODEL_RE.exec(text))) pushUpstream(match[1]);
-  MODEL_VERSION_RE.lastIndex = 0;
-  while ((match = MODEL_VERSION_RE.exec(text))) pushUpstream(match[1]);
+  const requestBodyAt = text.indexOf('=== REQUEST BODY ===');
+  if (requestBodyAt >= 0) {
+    const model = readQuotedValue(text, 'model', requestBodyAt, requestBodyAt + 20_000);
+    if (model) requestedModels.push(model);
+  }
+  modelsNearAnchors(text, requestedModels, upstreamModels);
 
-  if (!endedAt) endedAt = startedAt;
   return {
     id,
     startedAt,
-    endedAt,
+    endedAt: endedAt || startedAt,
     requestedModels: unique(requestedModels),
     upstreamEvents: unique(upstreamModels).map((model) => ({ at: startedAt, model })),
   };
@@ -446,10 +480,15 @@ export const selectCandidateHintIds = (
     if (hint.firstTs - expandMs > pageMax) return false;
     return true;
   });
-  const newestFirst = (items: RequestIdHint[]) =>
-    [...items].sort((left, right) => right.lastTs - left.lastTs || right.firstTs - left.firstTs);
-  if (overlapping.length) return newestFirst(overlapping).map((hint) => hint.id);
-  return newestFirst(hints.filter(matchesModel)).map((hint) => hint.id);
+  const rankHints = (items: RequestIdHint[]) =>
+    [...items].sort((left, right) => {
+      const score = (hint: RequestIdHint) => (hint.completed ? 2 : 0) + (hint.models.length ? 1 : 0);
+      const diff = score(right) - score(left);
+      if (diff) return diff;
+      return right.lastTs - left.lastTs || right.firstTs - left.firstTs;
+    });
+  if (overlapping.length) return rankHints(overlapping).map((hint) => hint.id);
+  return rankHints(hints.filter(matchesModel)).map((hint) => hint.id);
 };
 
 const dumpWindow = (dump: RequestLogDump, hint?: RequestIdHint) => {
