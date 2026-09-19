@@ -111,6 +111,16 @@ const loadDumps = async (ids: string[], hints: RequestIdHint[]): Promise<Request
             ? hint?.firstTs || entry.dump.startedAt || 0
             : entry.dump.startedAt || hint?.firstTs || 0,
           endedAt: Math.max(entry.dump.endedAt, hint?.lastTs || 0),
+          // 同理，客户端请求的模型写在 dump 头部的 REQUEST BODY 里，尾部片段取不到；
+          // 解析器只会把响应里的模型当成它，而那恰好是被替换后的名字。
+          // matchUpstreamModels 拿它做相关性校验，于是「上游换了模型」——唯一需要
+          // 检测的场景——必然被判为不相关而丢弃。
+          //
+          // 这里置空、不做该层校验，而不是退回 hint.models：后者语义并不稳定，
+          // 某些 provider 的 session-affinity 日志里 `model=` 记的是上游模型
+          // （实测有 `model=gp/Cursor Grok 4.6` 对应客户端的 `grok-4.6`），
+          // 拿它校验同样会误伤。相关性仍由 ±5 秒的时间窗和候选筛选来保证。
+          requestedModels: entry.partial ? [] : entry.dump.requestedModels,
         });
       }
     }
