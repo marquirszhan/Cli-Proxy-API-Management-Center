@@ -892,6 +892,22 @@
   color: var(--text-tertiary, #9ca3af);
 }
 
+// 徽标与上游实际模型名并排；min-width:0 让模型名能在窄列里正常省略。
+.modelConsistencyCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.modelConsistencyServed {
+  overflow: hidden;
+  color: var(--warning-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .statusWithBadge {
   display: inline-flex;
   position: relative;

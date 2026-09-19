@@ -336,14 +336,21 @@ export function RequestLogs({
               { model: upstreamModel }
             )}
           >
-            <span
-              className={`${styles.statusPill} ${
-                substituted ? styles.substituted : styles.success
-              }`}
-            >
-              {substituted
-                ? t('monitor.logs.model_consistency_substituted')
-                : t('monitor.logs.model_consistency_match')}
+            <span className={styles.modelConsistencyCell}>
+              <span
+                className={`${styles.statusPill} ${
+                  substituted ? styles.substituted : styles.success
+                }`}
+              >
+                {substituted
+                  ? t('monitor.logs.model_consistency_substituted')
+                  : t('monitor.logs.model_consistency_match')}
+              </span>
+              {/* 不一致时把上游实际返回的模型直接显示出来，不必悬停才看得到；
+                  一致时它等于请求模型，再列一遍只是占地方，留在 tooltip 里即可。 */}
+              {substituted && (
+                <span className={styles.modelConsistencyServed}>{upstreamModel}</span>
+              )}
             </span>
           </td>
         );

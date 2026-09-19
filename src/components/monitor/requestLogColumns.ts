@@ -22,7 +22,7 @@ export type RequestLogFilterKey = (typeof REQUEST_LOG_FILTER_KEYS)[number];
 
 export const REQUEST_LOG_TABLE_COLUMN_WIDTHS: Record<RequestLogTableColumnKey, number> = {
   model: 140,
-  modelConsistency: 120,
+  modelConsistency: 208,
   requestKey: 140,
   source: 160,
   status: 84,
