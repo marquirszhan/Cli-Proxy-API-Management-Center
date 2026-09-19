@@ -25,12 +25,35 @@ describe('inferLogOffsetMinutes', () => {
     expect(inferLogOffsetMinutes([logLine('2026-09-19 20:26:17')], now)).toBe(5 * 60 + 30);
   });
 
-  test('取最新的一行，不被旧行带偏', () => {
+  test('取最后一行，而不是数值最大的那行', () => {
     const now = Date.parse('2026-09-19T16:11:53Z');
     const lines = [
       logLine('2026-09-19 03:00:00'),
+      logLine('2026-09-19 23:30:00'),
       logLine('2026-09-19 09:11:49'),
-      logLine('2026-09-19 07:30:00'),
+    ];
+    expect(inferLogOffsetMinutes(lines, now)).toBe(-7 * 60);
+  });
+
+  test('日志跨越一次时区变更时，按切换后的新时区推断', () => {
+    // 服务器从 Asia/Shanghai 改成 America/Los_Angeles 后，同一份 main.log 里
+    // 会先是 22:xx（CST）再是 09:xx（PDT）。旧行数值更大，若按大小取就会选错，
+    // 算出荒谬的偏移并匹配到一批早已没有 dump 的旧请求。
+    const now = Date.parse('2026-09-19T16:11:53Z');
+    const lines = [
+      logLine('2026-09-19 22:44:04', 'd31fd4bf'), // 切换前，CST
+      logLine('2026-09-19 22:51:52', 'a1b2c3d4'), // 切换前，CST
+      logLine('2026-09-19 09:11:49', '1398d52c'), // 切换后，PDT
+    ];
+    expect(inferLogOffsetMinutes(lines, now)).toBe(-7 * 60);
+  });
+
+  test('尾部是无法解析的行时，继续往前找', () => {
+    const now = Date.parse('2026-09-19T16:11:53Z');
+    const lines = [
+      logLine('2026-09-19 09:11:49'),
+      '    at someFunction (stack trace continuation)',
+      '}',
     ];
     expect(inferLogOffsetMinutes(lines, now)).toBe(-7 * 60);
   });

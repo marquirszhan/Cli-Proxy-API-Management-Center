@@ -116,12 +116,19 @@ const formatOffset = (minutes: number): string => {
  * 看板与服务器同处一地是最常见的情形。
  */
 export const inferLogOffsetMinutes = (lines: string[], now: number = Date.now()): number => {
+  // 必须取「最后一行」，而不是「时间戳数值最大的那行」：日志是顺序追加的，
+  // 但服务器改过时区（或夏令时切换）之后，同一份日志里会混有两个偏移的裸时间戳，
+  // 旧时区的数值完全可能更大。拿那样一条旧日志去推断会得出荒谬的偏移，
+  // 进而匹配到一批早就没有 dump 的旧请求，整列照样是空的。
   let latestAsUtc = 0;
-  for (const line of lines) {
-    const match = line.match(APP_LOG_LINE_RE);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const match = lines[i].match(APP_LOG_LINE_RE);
     if (!match) continue;
     const ms = Date.parse(`${match[1].replace(' ', 'T')}Z`);
-    if (Number.isFinite(ms) && ms > latestAsUtc) latestAsUtc = ms;
+    if (Number.isFinite(ms) && ms > 0) {
+      latestAsUtc = ms;
+      break;
+    }
   }
   if (!latestAsUtc) return localOffsetMinutes();
 
