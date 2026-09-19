@@ -52,7 +52,10 @@ describe('parseRequestLogDump', () => {
   test('reads upstream response.model from api websocket frames', () => {
     const parsed = parseRequestLogDump(dumpA, '7f72c271');
     expect(parsed.requestedModels).toEqual(['gpt-6-astra']);
-    expect(parsed.upstreamEvents.map((event) => event.model)).toEqual(['gpt-6-astra', 'gpt-6-astra']);
+    expect(parsed.upstreamEvents.map((event) => event.model)).toEqual([
+      'gpt-6-astra',
+      'gpt-6-astra',
+    ]);
     expect(parsed.startedAt).toBe(Date.parse('2026-09-19T01:25:42.625+08:00'));
   });
 
@@ -120,11 +123,15 @@ Timestamp: 2026-09-19T01:57:49.138+08:00
 
 describe('collectRequestIdHints', () => {
   test('keeps hex request ids from app logs and skips dashed placeholders', () => {
-    const hints = collectRequestIdHints([
-      '[2026-09-19 01:22:12] [--------] [info ] GET "/v0/management/config.yaml"',
-      '[2026-09-19 01:26:04] [7f72c271] [info ] session-affinity model=gpt-6-astra',
-      '[2026-09-19 01:27:13] [7f72c271] [info ] 200 | GET "/v1/responses"',
-    ]);
+    // 显式给出偏移，断言才不依赖运行环境的时区或当前时刻。
+    const hints = collectRequestIdHints(
+      [
+        '[2026-09-19 01:22:12] [--------] [info ] GET "/v0/management/config.yaml"',
+        '[2026-09-19 01:26:04] [7f72c271] [info ] session-affinity model=gpt-6-astra',
+        '[2026-09-19 01:27:13] [7f72c271] [info ] 200 | GET "/v1/responses"',
+      ],
+      8 * 60
+    );
     expect(hints).toEqual([
       {
         id: '7f72c271',
@@ -215,9 +222,9 @@ Event: api.websocket.request
 
 describe('readProvidedUpstreamModel', () => {
   test('prefers an explicit upstream field and ignores empty values', () => {
-    expect(readProvidedUpstreamModel({ model: 'gpt-6-astra', upstream_model: 'gpt-4o-2024-08-06' })).toBe(
-      'gpt-4o-2024-08-06'
-    );
+    expect(
+      readProvidedUpstreamModel({ model: 'gpt-6-astra', upstream_model: 'gpt-4o-2024-08-06' })
+    ).toBe('gpt-4o-2024-08-06');
     expect(readProvidedUpstreamModel({ model: 'gpt-6-astra', responseModel: '  ' })).toBe('');
     expect(readProvidedUpstreamModel({ model: 'gpt-6-astra' })).toBe('');
   });

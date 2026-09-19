@@ -64,13 +64,9 @@ const REQUEST_EVENTS = new Set([
   'upstream.request',
 ]);
 
-const RESPONSE_LIKE_EVENTS = new Set([
-  ...API_RESPONSE_EVENTS,
-  'websocket.response',
-]);
+const RESPONSE_LIKE_EVENTS = new Set([...API_RESPONSE_EVENTS, 'websocket.response']);
 
 const HAS_EXPLICIT_TZ_RE = /(?:[zZ]|[+-]\d{2}:?\d{2})$/;
-const CPA_NAIVE_LOG_OFFSET = '+08:00';
 const LARGE_DUMP_CHARS = 300_000;
 const MODEL_NEAR_ANCHORS: Array<{ needle: string; window: number; key: 'model' | 'modelVersion' }> =
   [
@@ -84,12 +80,79 @@ const MODEL_NEAR_ANCHORS: Array<{ needle: string; window: number; key: 'model' |
     { needle: '"modelVersion"', window: 80, key: 'modelVersion' },
   ];
 
-const parseTimestamp = (value: string): number => {
+// CPA 的 main.log 时间戳不带时区（`[2026-09-19 09:11:49]`），必须自己决定按哪个偏移解析。
+// 这里原先硬编码 +08:00，服务器一改时区（或夏令时切换）整列就会静默变空：
+// 哪怕只差 15 分钟，也足以让下面 120 秒的时间窗匹配全部落空。
+const OFFSET_STEP_MINUTES = 15;
+const MIN_OFFSET_MINUTES = -12 * 60;
+const MAX_OFFSET_MINUTES = 14 * 60;
+// 容忍机器时钟的小幅漂移；超过这个量的「未来日志」判定为偏移猜错。
+const CLOCK_SKEW_TOLERANCE_MS = 60_000;
+
+const localOffsetMinutes = (): number => -new Date().getTimezoneOffset();
+
+const formatOffset = (minutes: number): string => {
+  const sign = minutes < 0 ? '-' : '+';
+  const abs = Math.abs(minutes);
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mm = String(abs % 60).padStart(2, '0');
+  return `${sign}${hh}:${mm}`;
+};
+
+/**
+ * 从 app log 推断服务器写日志用的 UTC 偏移。
+ *
+ * 取日志里最新的一条时间戳，在所有 15 分钟粒度的候选偏移（真实时区偏移都是它的
+ * 整数倍）里，挑出使「推算出的写入时刻」最接近 now 的那个。
+ *
+ * 光比远近不够：候选范围横跨 26 小时，任何 now 都能找到一个差值很小的偏移，
+ * 只是可能整整差了 15 分钟的倍数。所以加一条物理约束——**日志不可能写于未来**，
+ * 把推算时刻超过 now 的候选全部排除。有了它，只要日志滞后小于一个步长（15 分钟），
+ * 推断结果必定是真实偏移。
+ *
+ * 局限：日志滞后超过 15 分钟时仍可能选错，且无从检测（差值同样很小）。实际不成立，
+ * 因为面板自身每 10 秒轮询一次 `/v0/management/logs`，这些请求会被 gin_logger
+ * 记进同一份日志，尾部始终是新鲜的。真取不到可用候选时回退浏览器本地时区——
+ * 看板与服务器同处一地是最常见的情形。
+ */
+export const inferLogOffsetMinutes = (lines: string[], now: number = Date.now()): number => {
+  let latestAsUtc = 0;
+  for (const line of lines) {
+    const match = line.match(APP_LOG_LINE_RE);
+    if (!match) continue;
+    const ms = Date.parse(`${match[1].replace(' ', 'T')}Z`);
+    if (Number.isFinite(ms) && ms > latestAsUtc) latestAsUtc = ms;
+  }
+  if (!latestAsUtc) return localOffsetMinutes();
+
+  let best: number | null = null;
+  let bestLag = Number.POSITIVE_INFINITY;
+  for (
+    let offset = MIN_OFFSET_MINUTES;
+    offset <= MAX_OFFSET_MINUTES;
+    offset += OFFSET_STEP_MINUTES
+  ) {
+    const writtenAt = latestAsUtc - offset * 60_000;
+    const lag = now - writtenAt;
+    if (lag < -CLOCK_SKEW_TOLERANCE_MS) continue;
+    if (lag < bestLag) {
+      bestLag = lag;
+      best = offset;
+    }
+  }
+  return best ?? localOffsetMinutes();
+};
+
+/**
+ * dump 内部的 Timestamp 自带时区（`2026-09-19T09:10:46.057-07:00`），走前一分支即可；
+ * naiveOffsetMinutes 只作用于不带时区的时间戳，默认按浏览器本地时区解释。
+ */
+const parseTimestamp = (value: string, naiveOffsetMinutes?: number): number => {
   const normalized = value.trim().replace(' ', 'T');
   if (!normalized) return 0;
   const withOffset = HAS_EXPLICIT_TZ_RE.test(normalized)
     ? normalized
-    : `${normalized}${CPA_NAIVE_LOG_OFFSET}`;
+    : `${normalized}${formatOffset(naiveOffsetMinutes ?? localOffsetMinutes())}`;
   const ms = Date.parse(withOffset);
   return Number.isFinite(ms) ? ms : 0;
 };
@@ -124,7 +187,7 @@ const modelFromObject = (value: unknown): string => {
 const isRequestCreate = (value: unknown): boolean => {
   if (!isRecord(value)) return false;
   const type = readString(value.type).toLowerCase();
-  return type === 'response.create' || type === 'request' || 'input' in value && !('id' in value);
+  return type === 'response.create' || type === 'request' || ('input' in value && !('id' in value));
 };
 
 const isUpstreamResponseObject = (value: unknown): boolean => {
@@ -134,7 +197,10 @@ const isUpstreamResponseObject = (value: unknown): boolean => {
   if (object === 'response' || object === 'chat.completion' || object === 'chat.completion.chunk') {
     return true;
   }
-  if (readString(value.id) && (readString(value.status) || 'created_at' in value || 'output' in value)) {
+  if (
+    readString(value.id) &&
+    (readString(value.status) || 'created_at' in value || 'output' in value)
+  ) {
     return true;
   }
   if (isRecord(value.response) && modelFromObject(value.response)) {
@@ -202,7 +268,8 @@ const splitSections = (text: string): Array<{ name: string; body: string }> => {
   return matches.map((match, index) => {
     const start = match.index ?? 0;
     const bodyStart = start + match[0].length;
-    const bodyEnd = index + 1 < matches.length ? (matches[index + 1].index ?? text.length) : text.length;
+    const bodyEnd =
+      index + 1 < matches.length ? (matches[index + 1].index ?? text.length) : text.length;
     return { name: match[1], body: text.slice(bodyStart, bodyEnd) };
   });
 };
@@ -237,14 +304,18 @@ const isRequestSection = (name: string): boolean => {
   return lower.includes('request info') || lower.includes('request body') || lower === 'request';
 };
 
-export const collectRequestIdHints = (lines: string[]): RequestIdHint[] => {
+/**
+ * @param offsetMinutes 解析 app log 裸时间戳用的 UTC 偏移；省略时从日志自身推断。
+ */
+export const collectRequestIdHints = (lines: string[], offsetMinutes?: number): RequestIdHint[] => {
+  const naiveOffset = offsetMinutes ?? inferLogOffsetMinutes(lines);
   const byId = new Map<string, RequestIdHint>();
   for (const raw of lines) {
     const match = raw.match(APP_LOG_LINE_RE);
     if (!match) continue;
     const id = match[2];
     if (!id || /^-+$/.test(id)) continue;
-    const ts = parseTimestamp(match[1]);
+    const ts = parseTimestamp(match[1], naiveOffset);
     if (!ts) continue;
     let hint = byId.get(id);
     if (!hint) {
@@ -256,7 +327,11 @@ export const collectRequestIdHints = (lines: string[]): RequestIdHint[] => {
     const model = raw.match(MODEL_EQ_RE)?.[1];
     if (model) hint.models = unique([...hint.models, model]);
     if (PATH_RE.test(raw) || /\/v1(?:beta)?\//.test(raw)) hint.apiRequest = true;
-    if (/\/v1(?:beta)?\//.test(raw) && /\b[1-5]\d{2}\b/.test(raw) && !/\/v0\/management\//.test(raw)) {
+    if (
+      /\/v1(?:beta)?\//.test(raw) &&
+      /\b[1-5]\d{2}\b/.test(raw) &&
+      !/\/v0\/management\//.test(raw)
+    ) {
       hint.completed = true;
     }
   }
@@ -283,11 +358,7 @@ const readQuotedValue = (text: string, key: string, from: number, to: number): s
   return '';
 };
 
-const modelsNearAnchors = (
-  text: string,
-  requested: string[],
-  upstream: string[]
-): void => {
+const modelsNearAnchors = (text: string, requested: string[], upstream: string[]): void => {
   for (const anchor of MODEL_NEAR_ANCHORS) {
     let from = 0;
     let found = 0;
@@ -353,7 +424,9 @@ const parseRequestLogDumpDetailed = (text: string, id?: string): RequestLogDump 
   let startedAt = 0;
   let endedAt = 0;
 
-  const requestInfo = sections.find((section) => section.name.toLowerCase().includes('request info'));
+  const requestInfo = sections.find((section) =>
+    section.name.toLowerCase().includes('request info')
+  );
   if (requestInfo) {
     const tsMatch = requestInfo.body.match(REQUEST_INFO_TS_RE);
     if (tsMatch) startedAt = parseTimestamp(tsMatch[1]);
@@ -482,7 +555,8 @@ export const selectCandidateHintIds = (
   });
   const rankHints = (items: RequestIdHint[]) =>
     [...items].sort((left, right) => {
-      const score = (hint: RequestIdHint) => (hint.completed ? 2 : 0) + (hint.models.length ? 1 : 0);
+      const score = (hint: RequestIdHint) =>
+        (hint.completed ? 2 : 0) + (hint.models.length ? 1 : 0);
       const diff = score(right) - score(left);
       if (diff) return diff;
       return right.lastTs - left.lastTs || right.firstTs - left.firstTs;
@@ -513,7 +587,8 @@ export const matchUpstreamModels = (
       .map((dump) => ({ dump, ...dumpWindow(dump, dump.id ? hintById.get(dump.id) : undefined) }))
       .filter(({ dump, startedAt, endedAt }) => {
         if (!startedAt) return false;
-        if (entry.timestampMs < startedAt - 5_000 || entry.timestampMs > endedAt + 5_000) return false;
+        if (entry.timestampMs < startedAt - 5_000 || entry.timestampMs > endedAt + 5_000)
+          return false;
         if (
           dump.requestedModels.length &&
           entry.model &&
