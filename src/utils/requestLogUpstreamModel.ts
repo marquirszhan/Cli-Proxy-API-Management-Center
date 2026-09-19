@@ -68,6 +68,8 @@ const RESPONSE_LIKE_EVENTS = new Set([...API_RESPONSE_EVENTS, 'websocket.respons
 
 const HAS_EXPLICIT_TZ_RE = /(?:[zZ]|[+-]\d{2}:?\d{2})$/;
 const LARGE_DUMP_CHARS = 300_000;
+/** 按行轮询分配抓取名额时，每行最多优先占几个候选。 */
+const PER_ROW_CANDIDATE_DEPTH = 3;
 const MODEL_NEAR_ANCHORS: Array<{ needle: string; window: number; key: 'model' | 'modelVersion' }> =
   [
     { needle: '"type":"response.create"', window: 280, key: 'model' },
@@ -554,22 +556,65 @@ export const selectCandidateHintIds = (
   const models = new Set(entries.map((entry) => entry.model).filter(Boolean));
   const matchesModel = (hint: RequestIdHint) =>
     !hint.models.length || !models.size || hint.models.some((model) => models.has(model));
+  // 模型名只作为排序权重，不做硬过滤。app log 里的 `model=` 未必是客户端请求的那个：
+  // openai-compatibility 这类 provider 记的是上游别名（实测 `model=gp/Cursor Grok 4.6`
+  // 对应客户端的 `grok-4.6`），而且别名形式无法穷举。一旦据此排除，那条请求的 dump
+  // 就永远进不了候选，对应的行只能一直空着。时间窗仍是硬条件，后面
+  // matchUpstreamModels 还有 ±5 秒的窗口做最终校验，放宽这里是安全的。
   const overlapping = hints.filter((hint) => {
-    if (!matchesModel(hint)) return false;
     if (hint.lastTs + 5_000 < pageMin) return false;
     if (hint.firstTs - expandMs > pageMax) return false;
     return true;
   });
+  // 最强的相关性信号是「这个 hint 的时间段是否罩住了页面上某一行」，而不是模型名对不对。
+  // 抓取名额有限（见 loadDumps 的上限），按它排序才能保证真正对应当前页的 dump 排在前面。
+  const rowTimes = entries.map((entry) => entry.timestampMs).filter(Boolean);
+  const coversRow = (hint: RequestIdHint) =>
+    rowTimes.some((at) => at >= hint.firstTs - 5_000 && at <= hint.lastTs + 5_000);
   const rankHints = (items: RequestIdHint[]) =>
     [...items].sort((left, right) => {
       const score = (hint: RequestIdHint) =>
-        (hint.completed ? 2 : 0) + (hint.models.length ? 1 : 0);
+        (coversRow(hint) ? 8 : 0) +
+        (hint.completed ? 4 : 0) +
+        (matchesModel(hint) ? 2 : 0) +
+        (hint.models.length ? 1 : 0);
       const diff = score(right) - score(left);
       if (diff) return diff;
       return right.lastTs - left.lastTs || right.firstTs - left.firstTs;
     });
-  if (overlapping.length) return rankHints(overlapping).map((hint) => hint.id);
-  return rankHints(hints.filter(matchesModel)).map((hint) => hint.id);
+  const ranked = rankHints(overlapping.length ? overlapping : hints);
+
+  // 抓取名额有限，纯全局排序会让某些行的 dump 全部落在名额之外——它们就永远是空的。
+  // 先按行轮询分配：每一行先拿走自己最匹配的那个候选，再轮第二个，以此类推。
+  // 这样每行都能分到名额，而不是被请求量大的模型挤掉。
+  const perRow = entries
+    .filter((entry) => entry.timestampMs)
+    .map((entry) =>
+      ranked.filter(
+        (hint) =>
+          entry.timestampMs >= hint.firstTs - 5_000 && entry.timestampMs <= hint.lastTs + 5_000
+      )
+    );
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (let depth = 0; depth < PER_ROW_CANDIDATE_DEPTH; depth += 1) {
+    let added = false;
+    for (const list of perRow) {
+      const hint = list[depth];
+      if (!hint || seen.has(hint.id)) continue;
+      seen.add(hint.id);
+      ordered.push(hint.id);
+      added = true;
+    }
+    if (!added) break;
+  }
+  // 剩下的按原排序补在后面，名额有富余时仍会被拉到。
+  for (const hint of ranked) {
+    if (seen.has(hint.id)) continue;
+    seen.add(hint.id);
+    ordered.push(hint.id);
+  }
+  return ordered;
 };
 
 const dumpWindow = (dump: RequestLogDump, hint?: RequestIdHint) => {
