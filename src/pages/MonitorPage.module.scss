@@ -879,6 +879,17 @@
     background: rgba(239, 68, 68, 0.15);
     color: var(--danger-color, #ef4444);
   }
+
+  // 上游模型被替换：是告警不是失败，请求本身通常是成功的。
+  &.substituted {
+    background: var(--warning-bg);
+    color: var(--warning-text);
+  }
+}
+
+// 没有上游模型信息时的占位，弱化处理以免与"一致"混淆。
+.modelConsistencyUnknown {
+  color: var(--text-tertiary, #9ca3af);
 }
 
 .statusWithBadge {

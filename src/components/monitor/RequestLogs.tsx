@@ -30,6 +30,7 @@ import {
   type DateRange,
 } from '@/utils/monitor';
 import { readProvidedUpstreamModel } from '@/utils/requestLogUpstreamModel';
+import { detectModelConsistency } from '@/utils/modelSubstitution';
 import styles from '@/pages/MonitorPage.module.scss';
 
 interface RequestLogsProps {
@@ -274,10 +275,7 @@ export function RequestLogs({
         })),
     [logEntries]
   );
-  const matchedUpstreamModels = useUpstreamReturnedModels(
-    matchRows,
-    enabled && requestLogEnabled
-  );
+  const matchedUpstreamModels = useUpstreamReturnedModels(matchRows, enabled && requestLogEnabled);
 
   const showLoading = (logLoading || loading) && logEntries.length === 0;
 
@@ -317,9 +315,38 @@ export function RequestLogs({
     switch (column) {
       case 'model':
         return <td title={entry.model}>{entry.model}</td>;
-      case 'upstreamModel': {
+      case 'modelConsistency': {
         const upstreamModel = entry.providedUpstreamModel || matchedUpstreamModels[entry.id] || '';
-        return <td title={upstreamModel || undefined}>{upstreamModel}</td>;
+        const consistency = detectModelConsistency(entry.model, upstreamModel);
+        if (consistency === 'unknown') {
+          // 没拿到上游模型名时只能是"未知"，不能当成一致——那是没有证据，不是证据为真。
+          return (
+            <td title={t('monitor.logs.model_consistency_unknown_hint')}>
+              <span className={styles.modelConsistencyUnknown}>—</span>
+            </td>
+          );
+        }
+        const substituted = consistency === 'substituted';
+        return (
+          <td
+            title={t(
+              substituted
+                ? 'monitor.logs.model_consistency_substituted_hint'
+                : 'monitor.logs.model_consistency_match_hint',
+              { model: upstreamModel }
+            )}
+          >
+            <span
+              className={`${styles.statusPill} ${
+                substituted ? styles.substituted : styles.success
+              }`}
+            >
+              {substituted
+                ? t('monitor.logs.model_consistency_substituted')
+                : t('monitor.logs.model_consistency_match')}
+            </span>
+          </td>
+        );
       }
       case 'requestKey': {
         const requestKey = entry.requestKey || '-';

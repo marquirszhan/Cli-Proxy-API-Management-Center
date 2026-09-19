@@ -32,7 +32,12 @@
       "fast_badge": "FAST",
       "all_request_keys": "Все ключи запросов",
       "header_request_key": "Ключ запроса",
-      "header_upstream_model": "Модель upstream"
+      "header_model_consistency": "Совпадение модели",
+      "model_consistency_match": "Совпадает",
+      "model_consistency_substituted": "Не совпадает",
+      "model_consistency_match_hint": "Upstream вернул: {{model}}",
+      "model_consistency_substituted_hint": "Upstream фактически вернул: {{model}}",
+      "model_consistency_unknown_hint": "Модель upstream не получена"
     }
   },
   "nav": {

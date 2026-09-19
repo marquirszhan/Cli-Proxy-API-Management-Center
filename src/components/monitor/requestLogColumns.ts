@@ -1,6 +1,6 @@
 export const REQUEST_LOG_TABLE_COLUMN_KEYS = [
   'model',
-  'upstreamModel',
+  'modelConsistency',
   'requestKey',
   'source',
   'status',
@@ -22,7 +22,7 @@ export type RequestLogFilterKey = (typeof REQUEST_LOG_FILTER_KEYS)[number];
 
 export const REQUEST_LOG_TABLE_COLUMN_WIDTHS: Record<RequestLogTableColumnKey, number> = {
   model: 140,
-  upstreamModel: 168,
+  modelConsistency: 120,
   requestKey: 140,
   source: 160,
   status: 84,
@@ -44,7 +44,7 @@ export const REQUEST_LOG_TABLE_MIN_WIDTH = Object.values(REQUEST_LOG_TABLE_COLUM
 
 export const REQUEST_LOG_TABLE_HEADER_KEYS: Record<RequestLogTableColumnKey, string> = {
   model: 'monitor.logs.header_model',
-  upstreamModel: 'monitor.logs.header_upstream_model',
+  modelConsistency: 'monitor.logs.header_model_consistency',
   requestKey: 'monitor.logs.header_request_key',
   source: 'monitor.logs.header_source',
   status: 'monitor.logs.header_status',
