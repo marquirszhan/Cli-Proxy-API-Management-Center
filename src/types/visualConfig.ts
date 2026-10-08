@@ -6,7 +6,27 @@ export type PluginStoreAuthApplyTo = 'registry' | 'metadata' | 'artifact';
 export type PayloadParamValidationErrorCode =
   'payload_invalid_number' | 'payload_invalid_boolean' | 'payload_invalid_json';
 
+export type CodexLiveICEServerDraft = {
+  id: string;
+  urlsText: string;
+  username: string;
+  credential: string;
+};
+
 export type VisualConfigFieldPath =
+  | 'trustedProxies'
+  | 'discoveryServiceType'
+  | 'transientErrorCooldownSeconds'
+  | 'videoResultAuthCacheTTL'
+  | 'claudeHeaderTimezone'
+  | 'codexStreamBootstrapTimeout'
+  | 'antigravityConnectionPoolIdleTimeout'
+  | 'antigravityConnectionPoolMaxIdleConnsPerHost'
+  | 'codexLiveMediaRelayMaxSessions'
+  | 'codexLiveMediaRelayPublicIP'
+  | 'codexLiveMediaRelayUDPPortMin'
+  | 'codexLiveMediaRelayUDPPortMax'
+  | 'codexLiveMediaRelayICEServers'
   | 'port'
   | 'errorLogsMaxFiles'
   | 'logsMaxTotalSizeMb'
@@ -22,6 +42,16 @@ export type VisualConfigFieldPath =
   | 'streaming.nonstreamKeepaliveInterval';
 
 export type VisualConfigValidationErrorCode =
+  | 'invalid_trusted_proxies'
+  | 'invalid_discovery_service_type'
+  | 'invalid_duration'
+  | 'positive_duration'
+  | 'invalid_timezone'
+  | 'invalid_ip'
+  | 'udp_port_pair'
+  | 'udp_port_capacity'
+  | 'invalid_ice_servers'
+  | 'integer_range_0_65535'
   | 'port_range'
   | 'integer'
   | 'non_negative_integer'
@@ -88,7 +118,45 @@ export type PluginStoreAuthRule = {
   allowInsecure: boolean;
 };
 
+/** UI draft keys; YAML persistence uses the v8 tree, not these flattened names. */
 export type VisualConfigValues = {
+  githubToken: string;
+  trustedProxies: string[];
+  discoveryEnabled: boolean;
+  discoveryServiceName: string;
+  discoveryServiceType: string;
+  discoverySubtypes: string[];
+  discoveryInterfacesInclude: string[];
+  discoveryInterfacesExclude: string[];
+  discoveryAuthRequired: boolean;
+  discoveryAdvertiseManagement: boolean;
+
+  routingSessionAffinitySubagents: boolean;
+  saveCooldownStatus: boolean;
+  transientErrorCooldownSeconds: string;
+  videoResultAuthCacheTTL: string;
+  claudeHeaderTimezone: string;
+  claudeModelLevelCooling: boolean;
+  claudeDisableCloakMode: boolean;
+  claudeCodeDisableCloakingModelList: boolean;
+  codexDisableCloaking: boolean;
+  codexModelLevelCooling: boolean;
+  codexStreamBootstrapBuffering: boolean;
+  codexStreamBootstrapTimeout: string;
+  codexOptimizeMultiAgentV2: boolean;
+  codexOrphanDelegationCompatibility: boolean;
+  codexResponseSteering: boolean;
+  antigravityConnectionPoolEnabled: boolean;
+  antigravityConnectionPoolIdleTimeout: string;
+  antigravityConnectionPoolMaxIdleConnsPerHost: string;
+  xaiInjectXSearch: boolean;
+  codexLiveMediaRelayEnabled: boolean;
+  codexLiveMediaRelayMaxSessions: string;
+  codexLiveMediaRelayDisablePrivateRemoteIPs: boolean;
+  codexLiveMediaRelayPublicIP: string;
+  codexLiveMediaRelayUDPPortMin: string;
+  codexLiveMediaRelayUDPPortMax: string;
+  codexLiveMediaRelayICEServers: CodexLiveICEServerDraft[];
   host: string;
   port: string;
   tlsEnable: boolean;
@@ -100,6 +168,7 @@ export type VisualConfigValues = {
   rmDisableAutoUpdatePanel: boolean;
   rmPanelRepo: string;
   authDir: string;
+  /** Client authentication keys at access.api-keys (never the upstream api-keys map). */
   apiKeysText: string;
   pluginsEnabled: boolean;
   pluginsDir: string;
@@ -122,21 +191,18 @@ export type VisualConfigValues = {
   maxRetryInterval: string;
   disableCooling: boolean;
   deleteUnauthorizedAuth: boolean;
-  saveCooldownStatus: boolean;
-  transientErrorCooldownSeconds: string;
   disableImageGeneration: DisableImageGenerationMode;
   gptImage2BaseModel: string;
   authAutoRefreshWorkers: string;
   authLoadWorkers: string;
   localModel: boolean;
-  videoResultAuthCacheTtl: string;
   quotaSwitchProject: boolean;
   quotaSwitchPreviewModel: boolean;
+  /** OAuth-only: oauth.providers.antigravity.antigravity-credits. */
   quotaAntigravityCredits: boolean;
   routingStrategy: RoutingStrategy;
   routingSessionAffinity: boolean;
   routingSessionAffinityTTL: string;
-  routingSessionAffinitySubagents: boolean;
   wsAuth: boolean;
   antigravitySensitiveWords: string[];
   devinSensitiveWords: string[];
@@ -148,18 +214,9 @@ export type VisualConfigValues = {
   claudeHeaderOs: string;
   claudeHeaderArch: string;
   claudeHeaderTimeout: string;
-  claudeHeaderTimezone: string;
   claudeHeaderStabilizeDeviceProfile: boolean;
-  disableClaudeCloakMode: boolean;
-  xaiInjectXSearch: boolean;
   codexIdentityConfuse: boolean;
   codexStripIntermediaryUpdates: boolean;
-  codexDisableCloaking: boolean;
-  codexStreamBootstrapBuffering: boolean;
-  codexStreamBootstrapTimeout: string;
-  codexOptimizeMultiAgentV2: boolean;
-  codexOrphanDelegationCompatibility: boolean;
-  codexModelLevelCooling: boolean;
   codexHeaderUserAgent: string;
   codexHeaderBetaFeatures: string;
   payloadDefaultRules: PayloadRule[];
@@ -176,6 +233,43 @@ export const makeClientId = () => {
 };
 
 export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
+  githubToken: '',
+  trustedProxies: [],
+  discoveryEnabled: false,
+  discoveryServiceName: '',
+  discoveryServiceType: '',
+  discoverySubtypes: [],
+  discoveryInterfacesInclude: [],
+  discoveryInterfacesExclude: [],
+  discoveryAuthRequired: true,
+  discoveryAdvertiseManagement: false,
+
+  routingSessionAffinitySubagents: true,
+  saveCooldownStatus: false,
+  transientErrorCooldownSeconds: '',
+  videoResultAuthCacheTTL: '',
+  claudeHeaderTimezone: '',
+  claudeModelLevelCooling: false,
+  claudeDisableCloakMode: false,
+  claudeCodeDisableCloakingModelList: false,
+  codexDisableCloaking: false,
+  codexModelLevelCooling: false,
+  codexStreamBootstrapBuffering: false,
+  codexStreamBootstrapTimeout: '',
+  codexOptimizeMultiAgentV2: false,
+  codexOrphanDelegationCompatibility: false,
+  codexResponseSteering: false,
+  antigravityConnectionPoolEnabled: false,
+  antigravityConnectionPoolIdleTimeout: '',
+  antigravityConnectionPoolMaxIdleConnsPerHost: '',
+  xaiInjectXSearch: false,
+  codexLiveMediaRelayEnabled: false,
+  codexLiveMediaRelayMaxSessions: '',
+  codexLiveMediaRelayDisablePrivateRemoteIPs: false,
+  codexLiveMediaRelayPublicIP: '',
+  codexLiveMediaRelayUDPPortMin: '',
+  codexLiveMediaRelayUDPPortMax: '',
+  codexLiveMediaRelayICEServers: [],
   host: '',
   port: '',
   tlsEnable: false,
@@ -209,21 +303,17 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   maxRetryInterval: '',
   disableCooling: false,
   deleteUnauthorizedAuth: false,
-  saveCooldownStatus: false,
-  transientErrorCooldownSeconds: '',
   disableImageGeneration: 'false',
   gptImage2BaseModel: '',
   authAutoRefreshWorkers: '',
   authLoadWorkers: '',
   localModel: false,
-  videoResultAuthCacheTtl: '',
   quotaSwitchProject: false,
   quotaSwitchPreviewModel: false,
   quotaAntigravityCredits: false,
   routingStrategy: 'round-robin',
   routingSessionAffinity: false,
   routingSessionAffinityTTL: '',
-  routingSessionAffinitySubagents: true,
   wsAuth: true,
   antigravitySensitiveWords: [],
   devinSensitiveWords: [],
@@ -235,18 +325,9 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   claudeHeaderOs: '',
   claudeHeaderArch: '',
   claudeHeaderTimeout: '',
-  claudeHeaderTimezone: '',
   claudeHeaderStabilizeDeviceProfile: false,
-  disableClaudeCloakMode: false,
-  xaiInjectXSearch: false,
   codexIdentityConfuse: false,
   codexStripIntermediaryUpdates: false,
-  codexDisableCloaking: false,
-  codexStreamBootstrapBuffering: false,
-  codexStreamBootstrapTimeout: '',
-  codexOptimizeMultiAgentV2: false,
-  codexOrphanDelegationCompatibility: false,
-  codexModelLevelCooling: false,
   codexHeaderUserAgent: '',
   codexHeaderBetaFeatures: '',
   payloadDefaultRules: [],

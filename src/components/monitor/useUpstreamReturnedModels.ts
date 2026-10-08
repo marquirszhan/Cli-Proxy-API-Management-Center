@@ -138,11 +138,14 @@ export function useUpstreamReturnedModels(
   const [retryTick, setRetryTick] = useState(0);
   const retryTickRef = useRef(0);
   const entriesRef = useRef(entries);
-  entriesRef.current = entries;
   const signature = useMemo(
     () => entries.map((entry) => `${entry.id}\t${entry.timestampMs}\t${entry.model}`).join('|'),
     [entries]
   );
+
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
 
   useEffect(() => {
     retryTickRef.current = 0;

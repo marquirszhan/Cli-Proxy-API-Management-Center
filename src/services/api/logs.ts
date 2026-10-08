@@ -2,7 +2,9 @@
  * 日志相关 API
  */
 
+import type { ApiError } from '@/types';
 import { apiClient } from './client';
+import { parseApiErrorResponse } from './apiError';
 import { LOGS_TIMEOUT_MS } from '@/utils/constants';
 import { isRecord } from '@/utils/helpers';
 
@@ -26,7 +28,7 @@ export interface ErrorLogFile {
 }
 
 export interface ErrorLogsResponse {
-  files?: ErrorLogFile[];
+  files: ErrorLogFile[];
 }
 
 const stringValue = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
@@ -57,46 +59,95 @@ const normalizeLogsResponse = (data: unknown): LogsResponse => {
   return {
     lines,
     latestAfter: latestTimestamp > 0 ? latestTimestamp : undefined,
-    nextCursor: stringValue(data['next-cursor']) || undefined,
+    // An explicit empty cursor clears the previous cursor after a reset.
+    nextCursor: typeof data['next-cursor'] === 'string' ? data['next-cursor'] : undefined,
     cursorReset: booleanValue(data['cursor-reset']),
   };
 };
 
-const responseDataToText = async (data: unknown): Promise<string> => {
+export interface LogsRequestOptions {
+  signal?: AbortSignal;
+}
+
+const normalizeErrorLogsResponse = (data: unknown): ErrorLogsResponse => {
+  if (!isRecord(data) || !Array.isArray(data.files)) return { files: [] };
+  return {
+    files: data.files.flatMap((file): ErrorLogFile[] => {
+      if (!isRecord(file) || typeof file.name !== 'string' || !file.name.trim()) return [];
+      return [
+        {
+          name: file.name,
+          size:
+            typeof file.size === 'number' && Number.isFinite(file.size) && file.size >= 0
+              ? file.size
+              : undefined,
+          modified: unixSecondsFromValue(file.modified) || undefined,
+        },
+      ];
+    }),
+  };
+};
+
+/** Decode download bodies without interpreting successful log contents as API errors. */
+export const responseDataToText = async (data: unknown): Promise<string> => {
   if (data instanceof Blob) return data.text();
-  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data);
+  if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
+    return new TextDecoder().decode(data);
+  }
   if (typeof data === 'string') return data;
   if (data === undefined || data === null) return '';
   try {
-    return JSON.stringify(data);
+    return JSON.stringify(data, null, 2) ?? String(data);
   } catch {
     return String(data);
   }
 };
+
+const downloadLog = async (path: string, options: LogsRequestOptions) => {
+  try {
+    return await apiClient.getRaw(path, {
+      ...options,
+      responseType: 'blob',
+      timeout: LOGS_TIMEOUT_MS,
+    });
+  } catch (error: unknown) {
+    // The client already emitted unauthorized on 401 and normalized the Axios error.
+    // It retains the body in data/details, NOT response.data. Preserve its identity,
+    // status, transport code and body while enriching the human-readable error.
+    if (error instanceof Error) {
+      const apiError = error as ApiError;
+      const body = apiError.data instanceof Blob ? apiError.data : apiError.details;
+      if (body instanceof Blob) {
+        try {
+          const text = await responseDataToText(body);
+          const parsed = parseApiErrorResponse(JSON.parse(text), apiError.message);
+          apiError.message = parsed.message;
+          if (parsed.apiCode !== undefined) apiError.apiCode = parsed.apiCode;
+        } catch {
+          // Unreadable/non-JSON bodies must not mask the original transport failure.
+        }
+      }
+    }
+    throw error;
+  }
+};
+
 
 /** 单个请求 dump 最多读入的字符数，避免超大文件把浏览器内存吃满。 */
 const REQUEST_LOG_MAX_CHARS = 1_500_000;
 
 /**
  * 用 Range 读取 dump 尾部的字节数。
- *
- * 上游响应段落在文件末尾，实测 256 KB 足以覆盖它；取得越少越快，
- * 但过小会在响应体很长时切掉 `=== RESPONSE ===` 的开头。
+ * 上游响应段落在文件末尾；取得越少越快，但过小会在响应体很长时切掉 `=== RESPONSE ===` 的开头。
  */
 const REQUEST_LOG_TAIL_BYTES = 262_144;
 
 export interface RequestLogTextResult {
   text: string;
-  /**
-   * 是否只取到了文件尾部。
-   *
-   * 为真时文本开头的结构是残缺的，从中解析出的起始时间戳只代表这一段的开头，
-   * 比真实请求时间晚，调用方不应拿它做时间窗匹配。
-   */
+  /** 为真时文本开头是残缺的，解析出的起始时间戳不能拿来做时间窗匹配。 */
   partial: boolean;
 }
 
-/** 流式读取响应体，读满 REQUEST_LOG_MAX_CHARS 就停并断开，不把整个文件拉完。 */
 const readResponseTextCapped = async (response: Response): Promise<string> => {
   if (!response.body) {
     return (await response.text()).slice(0, REQUEST_LOG_MAX_CHARS);
@@ -117,52 +168,51 @@ const readResponseTextCapped = async (response: Response): Promise<string> => {
 };
 
 export const logsApi = {
-  async fetchLogs(params: LogsQuery = {}): Promise<LogsResponse> {
-    const data = await apiClient.get('/logs', { params, timeout: LOGS_TIMEOUT_MS });
+
+  async fetchLogs(params: LogsQuery = {}, options: LogsRequestOptions = {}): Promise<LogsResponse> {
+    const data = await apiClient.get('/observability/logs', {
+      ...options,
+      params,
+      timeout: LOGS_TIMEOUT_MS,
+    });
     return normalizeLogsResponse(data);
   },
 
-  clearLogs: () => apiClient.delete('/logs'),
+  clearLogs: (options: LogsRequestOptions = {}) => apiClient.delete('/observability/logs', options),
 
-  fetchErrorLogs: (): Promise<ErrorLogsResponse> =>
-    apiClient.get('/request-error-logs', { timeout: LOGS_TIMEOUT_MS }),
-
-  downloadErrorLog: (filename: string) =>
-    apiClient.getRaw(`/request-error-logs/${encodeURIComponent(filename)}`, {
-      responseType: 'blob',
+  async fetchErrorLogs(options: LogsRequestOptions = {}): Promise<ErrorLogsResponse> {
+    const data = await apiClient.get('/observability/logs/errors', {
+      ...options,
       timeout: LOGS_TIMEOUT_MS,
-    }),
+    });
+    return normalizeErrorLogsResponse(data);
+  },
 
-  downloadRequestLogById: (id: string) =>
-    apiClient.getRaw(`/request-log-by-id/${encodeURIComponent(id)}`, {
-      responseType: 'blob',
-      timeout: LOGS_TIMEOUT_MS,
-    }),
+  downloadErrorLog: (filename: string, options: LogsRequestOptions = {}) =>
+    downloadLog(`/observability/logs/errors/${encodeURIComponent(filename)}`, options),
+
+  downloadRequestLogById: (id: string, options: LogsRequestOptions = {}) =>
+    downloadLog(`/observability/logs/requests/${encodeURIComponent(id)}`, options),
 
   async fetchRequestLogText(id: string): Promise<RequestLogTextResult> {
     const base = apiClient.getBaseUrl().replace(/\/$/, '');
     const key = apiClient.getManagementKey();
+    const requestPath = `/observability/logs/requests/${encodeURIComponent(id)}`;
     if (base && typeof fetch === 'function') {
-      const url = `${base}/request-log-by-id/${encodeURIComponent(id)}`;
+      const url = `${base}${requestPath}`;
       const headers: Record<string, string> = {};
       if (key) headers.Authorization = `Bearer ${key}`;
 
-      // 上游返回的模型写在 dump 尾部的 `=== RESPONSE ===` 段里，请求体排在它前面。
-      // 这类 dump 常常超过 2 MB，从头读满 REQUEST_LOG_MAX_CHARS 会在读到答案之前
-      // 先耗尽预算，于是大文件反而永远取不到模型名。所以优先用 Range 直接取尾部。
-      // 后端 GetRequestLogByID 走 c.FileAttachment -> http.ServeFile，支持 Range；
-      // 响应压缩中间件也会跳过带 Range 的请求，这里不会拿到 gzip 流。
+      // 上游返回的模型写在 dump 尾部。大文件从头读会在读到答案之前耗尽预算，所以优先 Range 取尾部。
       const ranged = await fetch(url, {
         headers: { ...headers, Range: `bytes=-${REQUEST_LOG_TAIL_BYTES}` },
       });
       if (ranged.status === 206) {
         return { text: await readResponseTextCapped(ranged), partial: true };
       }
-      // 服务端不支持 Range，或文件本身比请求的尾部还小，都会返回 200 全量。
       if (ranged.ok) {
         return { text: await readResponseTextCapped(ranged), partial: false };
       }
-      // 416 只说明 Range 不被接受，文件可能仍在；其余状态码照常抛给调用方判断。
       if (ranged.status !== 416) {
         const error = new Error(`HTTP ${ranged.status}`) as Error & { status: number };
         error.status = ranged.status;

@@ -41,7 +41,7 @@ export const readProvidedUpstreamModel = (item: object): string => {
 
 const APP_LOG_LINE_RE =
   /^\[(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?)\]\s+\[([0-9a-fA-F]{8}|-{4,})\]/;
-const MODEL_EQ_RE = /\bmodel=([A-Za-z0-9._:+\-]+)/;
+const MODEL_EQ_RE = /\bmodel=([A-Za-z0-9._:+-]+)/;
 const PATH_RE = /"(\/v1(?:beta)?\/[^"]+)"/;
 const SECTION_RE = /^=== (.+?) ===\s*$/m;
 const EVENT_BLOCK_RE =

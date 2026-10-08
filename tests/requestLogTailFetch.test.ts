@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { apiClient } from '../src/services/api/client';
 import { logsApi } from '../src/services/api/logs';
 
-const BASE = 'http://panel.test/v0/management';
+const BASE = 'http://panel.test/v8/management';
 const TAIL_HEADER = 'bytes=-262144';
 
 const originalFetch = globalThis.fetch;
@@ -58,7 +58,7 @@ describe('fetchRequestLogText', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].range).toBe(TAIL_HEADER);
     expect(calls[0].authorization).toBe('Bearer test-key');
-    expect(calls[0].url).toBe(`${BASE}/request-log-by-id/c26c2100`);
+    expect(calls[0].url).toBe(`${BASE}/observability/logs/requests/c26c2100`);
   });
 
   test('服务端忽略 Range 直接返回 200 时不标记 partial', async () => {

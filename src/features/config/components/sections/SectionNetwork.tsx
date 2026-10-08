@@ -40,10 +40,6 @@ export function SectionNetwork({
     validationErrors?.authAutoRefreshWorkers
   );
   const authLoadWorkersError = getValidationMessage(t, validationErrors?.authLoadWorkers);
-  const transientErrorCooldownSecondsError = getValidationMessage(
-    t,
-    validationErrors?.transientErrorCooldownSeconds
-  );
 
   const disableImageGenerationOptions = [
     {
@@ -136,28 +132,6 @@ export function SectionNetwork({
               error={authLoadWorkersError}
             />
           </FieldAnchor>
-          <FieldAnchor fieldId="transientErrorCooldownSeconds">
-            <Input
-              label={t('config_management.visual.sections.network.transient_error_cooldown')}
-              type="number"
-              placeholder="0"
-              value={values.transientErrorCooldownSeconds}
-              onChange={(e) => onChange({ transientErrorCooldownSeconds: e.target.value })}
-              disabled={disabled}
-              hint={t('config_management.visual.sections.network.transient_error_cooldown_hint')}
-              error={transientErrorCooldownSecondsError}
-            />
-          </FieldAnchor>
-          <FieldAnchor fieldId="videoResultAuthCacheTtl">
-            <Input
-              label={t('config_management.visual.sections.network.video_result_auth_cache_ttl')}
-              placeholder="3h"
-              value={values.videoResultAuthCacheTtl}
-              onChange={(e) => onChange({ videoResultAuthCacheTtl: e.target.value })}
-              disabled={disabled}
-              hint={t('config_management.visual.sections.network.video_result_auth_cache_ttl_hint')}
-            />
-          </FieldAnchor>
           <FieldAnchor fieldId="routingStrategy">
             <FieldShell
               label={t('config_management.visual.sections.network.routing_strategy')}
@@ -240,6 +214,50 @@ export function SectionNetwork({
         </FieldGrid>
 
         <FieldGrid>
+          <FieldAnchor fieldId="routingSessionAffinitySubagents">
+            <ToggleRow
+              title={t('config_management.visual.additions.routingSessionAffinitySubagents.label')}
+              description={t(
+                'config_management.visual.additions.routingSessionAffinitySubagents.hint'
+              )}
+              checked={values.routingSessionAffinitySubagents}
+              disabled={disabled}
+              onChange={(routingSessionAffinitySubagents) =>
+                onChange({ routingSessionAffinitySubagents })
+              }
+            />
+          </FieldAnchor>
+          <FieldAnchor fieldId="saveCooldownStatus">
+            <ToggleRow
+              title={t('config_management.visual.additions.saveCooldownStatus.label')}
+              description={t('config_management.visual.additions.saveCooldownStatus.hint')}
+              checked={values.saveCooldownStatus}
+              disabled={disabled}
+              onChange={(saveCooldownStatus) => onChange({ saveCooldownStatus })}
+            />
+          </FieldAnchor>
+          <FieldAnchor fieldId="transientErrorCooldownSeconds">
+            <Input
+              label={t('config_management.visual.additions.transientErrorCooldownSeconds.label')}
+              hint={t('config_management.visual.additions.transientErrorCooldownSeconds.hint')}
+              type="number"
+              value={values.transientErrorCooldownSeconds}
+              onChange={(e) => onChange({ transientErrorCooldownSeconds: e.target.value })}
+              disabled={disabled}
+              error={getValidationMessage(t, validationErrors?.transientErrorCooldownSeconds)}
+            />
+          </FieldAnchor>
+          <FieldAnchor fieldId="videoResultAuthCacheTTL">
+            <Input
+              label={t('config_management.visual.additions.videoResultAuthCacheTTL.label')}
+              hint={t('config_management.visual.additions.videoResultAuthCacheTTL.hint')}
+              type="text"
+              value={values.videoResultAuthCacheTTL}
+              onChange={(e) => onChange({ videoResultAuthCacheTTL: e.target.value })}
+              disabled={disabled}
+              error={getValidationMessage(t, validationErrors?.videoResultAuthCacheTTL)}
+            />
+          </FieldAnchor>
           <FieldAnchor fieldId="forceModelPrefix">
             <ToggleRow
               title={t('config_management.visual.sections.network.force_model_prefix')}
@@ -278,15 +296,6 @@ export function SectionNetwork({
               onChange={(deleteUnauthorizedAuth) => onChange({ deleteUnauthorizedAuth })}
             />
           </FieldAnchor>
-          <FieldAnchor fieldId="saveCooldownStatus">
-            <ToggleRow
-              title={t('config_management.visual.sections.network.save_cooldown_status')}
-              description={t('config_management.visual.sections.network.save_cooldown_status_desc')}
-              checked={values.saveCooldownStatus}
-              disabled={disabled}
-              onChange={(saveCooldownStatus) => onChange({ saveCooldownStatus })}
-            />
-          </FieldAnchor>
           <FieldAnchor fieldId="localModel">
             <ToggleRow
               title={t('config_management.visual.sections.network.local_model')}
@@ -302,19 +311,6 @@ export function SectionNetwork({
               checked={values.routingSessionAffinity}
               disabled={disabled}
               onChange={(routingSessionAffinity) => onChange({ routingSessionAffinity })}
-            />
-          </FieldAnchor>
-          <FieldAnchor fieldId="routingSessionAffinitySubagents">
-            <ToggleRow
-              title={t('config_management.visual.sections.network.session_affinity_subagents')}
-              description={t(
-                'config_management.visual.sections.network.session_affinity_subagents_desc'
-              )}
-              checked={values.routingSessionAffinitySubagents}
-              disabled={disabled}
-              onChange={(routingSessionAffinitySubagents) =>
-                onChange({ routingSessionAffinitySubagents })
-              }
             />
           </FieldAnchor>
           <FieldAnchor fieldId="wsAuth">

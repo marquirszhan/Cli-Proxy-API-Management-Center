@@ -12,9 +12,16 @@ import { buildMonitorRequestKey, monitorRequestGate } from '@/utils/requestGate'
 
 const MONITOR_TIMEOUT_MS = 60 * 1000;
 
+/** caidaoli 的监控接口仍挂在 /v0/management，面板其余请求走 /v8/management。 */
+const toMonitorUrl = (path: string) => {
+  const suffix = path.startsWith('/') ? path : `/${path}`;
+  const origin = apiClient.getBaseUrl().replace(/\/v8\/management\/?$/i, '');
+  return `${origin}/v0/management${suffix}`;
+};
+
 const gatedGet = <T>(path: string, params?: object, config?: { timeout?: number }) =>
   monitorRequestGate.run(buildMonitorRequestKey(path, params), () =>
-    apiClient.get<T>(path, {
+    apiClient.get<T>(toMonitorUrl(path), {
       params,
       timeout: config?.timeout ?? MONITOR_TIMEOUT_MS,
     })
@@ -373,7 +380,7 @@ export const monitorApi = {
       auth_index: authIndexes,
     })}`;
     const response = await monitorRequestGate.run(key, () =>
-      apiClient.get<MonitorKeyStatsWireResponse>('/custom/monitor/key-stats', {
+      apiClient.get<MonitorKeyStatsWireResponse>(toMonitorUrl('/custom/monitor/key-stats'), {
         params: { auth_index: authIndexes },
         paramsSerializer: { indexes: null },
         timeout: MONITOR_TIMEOUT_MS,
