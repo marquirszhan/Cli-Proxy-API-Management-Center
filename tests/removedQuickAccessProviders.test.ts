@@ -77,3 +77,11 @@ describe('removed quick-access providers', () => {
     });
   }
 });
+
+describe('sponsor campaign promotions', () => {
+  test('providers workbench does not render the affiliate campaign card', async () => {
+    const { readFileSync } = await import('node:fs');
+    const source = readFileSync('src/features/providers/ProvidersWorkbenchPage.tsx', 'utf8');
+    expect(source).not.toContain('SponsorCampaignCard');
+  });
+});

@@ -15,25 +15,11 @@
 
 [English](README.md) · **简体中文**
 
-[快速开始](#快速开始) · [功能一览](#功能一览) · [本地开发](#本地开发) · [下载发布版本](https://github.com/marquirszhan/Cli-Proxy-API-Management-Center/releases)
+[快速开始](#快速开始) · [功能一览](#功能一览) · [本地开发](#本地开发) · [下载发布版本](https://github.com/router-for-me/Cli-Proxy-API-Management-Center/releases)
 
 </div>
 
 ---
-
-## 关于本 fork
-
-本 fork 跟随官方 [router-for-me/Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center) 界面，并额外提供：
-
-- **监控中心**（`/monitor`），移植自 [caidaoli/Cli-Proxy-API-Management-Center](https://github.com/caidaoli/Cli-Proxy-API-Management-Center)：KPI 卡片、模型/渠道分布、小时级与日级趋势、服务健康热力图、失败分析与请求日志。这些接口仍在 `/v0/management/custom/monitor/*`（例如 `ghcr.io/caidaoli/cliproxyapi`）。
-- 去掉赞助商和推广内容。
-
-让 CLI Proxy API 使用本面板：
-
-```yaml
-management:
-  panel-github-repository: https://github.com/marquirszhan/Cli-Proxy-API-Management-Center
-```
 
 ## 一个界面，掌握服务全貌
 
@@ -43,7 +29,7 @@ management:
 | --- | --- | --- |
 | 可视化或 YAML 编辑，保存前查看差异。 | 统一管理提供商密钥、认证文件与 OAuth 授权。 | 查看服务状态、提供商配额与请求日志。 |
 
-**单文件部署** · **响应式布局** · **五种界面语言**
+**单文件部署** · **响应式布局** · **四种界面语言**
 
 > [!IMPORTANT]
 > 需要 **CLI Proxy API ≥ 8.0.0**，推荐使用最新 v8 版本。本仓库仅包含管理界面，**不是代理本体，不参与流量转发**。仅使用 **v8 Management API**（`/v8/management`）与 v8 配置结构，不提供 v0 回退；插件资源与自定义扩展保留后端声明的路径。
@@ -93,11 +79,11 @@ management:
 | **插件** | 在已声明支持插件的后端上使用插件管理功能。 |
 | **系统信息** | 检查更新、查看可用模型，以及清理本地登录数据。 |
 
-支持 **English、简体中文、繁體中文、Русский 和 Tiếng Việt**，自动识别浏览器语言，也可手动切换。响应式布局适配桌面、平板与手机，支持现代 Chrome、Firefox、Safari 和 Edge 浏览器。
+支持 **English、简体中文、繁體中文和 Русский**，自动识别浏览器语言，也可手动切换。响应式布局适配桌面、平板与手机，支持现代 Chrome、Firefox、Safari 和 Edge 浏览器。
 
 ## 部署
 
-如需自行构建单文件界面，使用 **Bun 1.3.14**：
+如需自行构建单文件界面，使用 **Bun 1.4.3**：
 
 ```bash
 bun install --frozen-lockfile

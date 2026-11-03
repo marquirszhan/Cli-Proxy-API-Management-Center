@@ -2,7 +2,8 @@ import { describe, expect, spyOn, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { apiClient } from '@/services/api/client';
 import { oauthApi } from '@/services/api/oauth';
-import { createOAuthAttempts } from '@/pages/oauthAttempts';
+import { createOAuthAttempts } from '@/features/oauth/oauthAttempts';
+import { isSponsor, OAUTH_PROVIDERS } from '@/features/oauth/providers';
 
 describe('Kimi regional login', () => {
   test('uses separate provider parameters and preserves cancellation', async () => {
@@ -37,13 +38,16 @@ describe('Kimi regional login', () => {
     }
   });
 
-  test('offers both regional login cards without affiliate signup links', () => {
-    const source = readFileSync('src/pages/OAuthPage.tsx', 'utf8');
-    expect(source).toContain("id: 'kimi-ai'");
-    expect(source).toContain("id: 'kimi'");
+  test('offers both regional login tiles without affiliate signup links', () => {
+    const kimi = OAUTH_PROVIDERS.find((provider) => provider.id === 'kimi');
+    const kimiAi = OAUTH_PROVIDERS.find((provider) => provider.id === 'kimi-ai');
+    expect(kimi).toMatchObject({ flow: 'device', domain: 'kimi.com' });
+    expect(kimiAi).toMatchObject({ flow: 'device', domain: 'kimi.ai' });
+    expect(kimi?.sponsor).toBeUndefined();
+    expect(kimiAi?.sponsor).toBeUndefined();
+    expect(OAUTH_PROVIDERS.filter(isSponsor)).toEqual([]);
+    const source = readFileSync('src/features/oauth/providers.ts', 'utf8');
     expect(source).not.toContain('AFFILIATE_URL');
-    expect(source).not.toContain('kimi_sign_up_button');
-    expect(source).not.toContain('featuredProviders');
   });
 
   for (const locale of ['en', 'zh-CN', 'zh-TW', 'ru']) {

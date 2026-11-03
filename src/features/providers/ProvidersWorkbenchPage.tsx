@@ -447,11 +447,13 @@ export function ProvidersWorkbenchPage({ fixedBrand }: ProvidersWorkbenchPagePro
           />
         ) : null}
         {fixedBrand === 'apikeyFun' ? (
-          <SponsorQuickStartPanel
-            resource={quickStartResource}
-            workbench={workbench}
-            mutationDisabled={disableMutations}
-          />
+          <div className={styles.quickStartStack}>
+            <SponsorQuickStartPanel
+              resource={quickStartResource}
+              workbench={workbench}
+              mutationDisabled={disableMutations}
+            />
+          </div>
         ) : (
           <ProviderResourcePanel
             group={activeGroup}

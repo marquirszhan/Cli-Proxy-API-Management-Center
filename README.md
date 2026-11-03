@@ -15,25 +15,11 @@ Manage providers, credentials, quotas, and logs — from a single HTML file.
 
 **English** · [简体中文](README_CN.md)
 
-[Get started](#quick-start) · [Features](#features) · [Development](#development) · [Releases](https://github.com/marquirszhan/Cli-Proxy-API-Management-Center/releases)
+[Get started](#quick-start) · [Features](#features) · [Development](#development) · [Releases](https://github.com/router-for-me/Cli-Proxy-API-Management-Center/releases)
 
 </div>
 
 ---
-
-## About this fork
-
-This fork tracks the official [router-for-me/Cli-Proxy-API-Management-Center](https://github.com/router-for-me/Cli-Proxy-API-Management-Center) UI and adds:
-
-- **Monitor Center** (`/monitor`), ported from [caidaoli/Cli-Proxy-API-Management-Center](https://github.com/caidaoli/Cli-Proxy-API-Management-Center): KPI cards, model and channel distribution, hourly and daily trends, a service health heatmap, failure analysis, and request logs. Those endpoints stay on `/v0/management/custom/monitor/*` (for example `ghcr.io/caidaoli/cliproxyapi`).
-- Sponsor and affiliate promotions are removed.
-
-Point CLI Proxy API at this panel with:
-
-```yaml
-management:
-  panel-github-repository: https://github.com/marquirszhan/Cli-Proxy-API-Management-Center
-```
 
 ## One place to manage your instance
 
@@ -43,7 +29,7 @@ From everyday configuration to troubleshooting, keep the essentials close at han
 | --- | --- | --- |
 | Edit settings visually or in YAML, with a diff before saving. | Manage provider keys, auth files, and OAuth flows. | Check instance status, provider quotas, and request logs. |
 
-**Single-file deployment** · **Responsive layout** · **Five UI languages**
+**Single-file deployment** · **Responsive layout** · **Four UI languages**
 
 > [!IMPORTANT]
 > Requires **CLI Proxy API ≥ 8.0.0**; the latest v8 release is recommended. This repository is the management UI, not the proxy — it does not forward traffic. It uses the **v8 Management API** (`/v8/management`) and v8 configuration layout, with no v0 fallback. Plugin resources and custom extensions retain their backend-declared paths.
@@ -93,11 +79,11 @@ Upgrade the backend first and back up `config.yaml`. The backend returns the v8 
 | **Plugins** | Access plugin management when the connected backend advertises support. |
 | **System** | Check for updates, inspect available models, and clear local login data. |
 
-Supports **English, 简体中文, 繁體中文, Русский, and Tiếng Việt**, with browser-language detection and a manual language switch. Responsive layouts support desktop, tablet, and mobile use in modern Chrome, Firefox, Safari, and Edge.
+Supports **English, 简体中文, 繁體中文, and Русский**, with browser-language detection and a manual language switch. Responsive layouts support desktop, tablet, and mobile use in modern Chrome, Firefox, Safari, and Edge.
 
 ## Deployment
 
-To build your own single-file UI, use **Bun 1.3.14**:
+To build your own single-file UI, use **Bun 1.4.3**:
 
 ```bash
 bun install --frozen-lockfile

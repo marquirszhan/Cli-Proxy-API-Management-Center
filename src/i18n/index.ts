@@ -12,6 +12,8 @@ import zhCNLocal from './locales/zh-CN-local.json';
 import enLocal from './locales/en-local.json';
 import ruLocal from './locales/ru-local.json';
 import vi from './locales/vi.json';
+import ko from './locales/ko.json';
+import tr from './locales/tr.json';
 import { getInitialLanguage } from '@/utils/language';
 
 type Messages = Record<string, unknown>;
@@ -38,6 +40,8 @@ i18n.use(initReactI18next).init({
     en: { translation: mergeMessages(en, enLocal) },
     ru: { translation: mergeMessages(ru, ruLocal) },
     vi: { translation: mergeMessages(vi, enLocal) },
+    ko: { translation: mergeMessages(ko, enLocal) },
+    tr: { translation: mergeMessages(tr, enLocal) },
   },
   lng: getInitialLanguage(),
   fallbackLng: 'zh-CN',

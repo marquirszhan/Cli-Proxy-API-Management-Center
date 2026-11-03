@@ -196,8 +196,6 @@ export type VisualConfigValues = {
   authAutoRefreshWorkers: string;
   authLoadWorkers: string;
   localModel: boolean;
-  quotaSwitchProject: boolean;
-  quotaSwitchPreviewModel: boolean;
   /** OAuth-only: oauth.providers.antigravity.antigravity-credits. */
   quotaAntigravityCredits: boolean;
   routingStrategy: RoutingStrategy;
@@ -308,8 +306,6 @@ export const DEFAULT_VISUAL_VALUES: VisualConfigValues = {
   authAutoRefreshWorkers: '',
   authLoadWorkers: '',
   localModel: false,
-  quotaSwitchProject: false,
-  quotaSwitchPreviewModel: false,
   quotaAntigravityCredits: false,
   routingStrategy: 'round-robin',
   routingSessionAffinity: false,
